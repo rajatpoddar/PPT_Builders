@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0">{{ title }}</h5>
+    <a href="{{ url_for('dashboard') }}" class="btn btn-sm btn-secondary">Back</a>
+</div>
+
+<div class="row">
+    {% for w in workers %}
+    <div class="col-12 mb-2">
+        <a href="{{ url_for('worker_profile', worker_id=w.id) }}" class="text-decoration-none">
+            <div class="card stat-card">
+                <div class="card-body p-3 d-flex align-items-center">
+                    {% if w.photo_path %}
+                    <img src="{{ url_for('uploaded_file', filename=w.photo_path) }}" class="rounded me-3" style="width: 50px; height: 50px; object-fit: cover;">
+                    {% else %}
+                    <div class="rounded bg-secondary text-white d-flex align-items-center justify-content-center me-3" style="width: 50px; height: 50px;">👤</div>
+                    {% endif %}
+                    
+                    <div>
+                        <h6 class="mb-0 text-dark fw-bold">{{ w.name }}</h6>
+                        <small class="text-muted">{{ w.role }} | {{ w.phone }}</small><br>
+                        {% if w.project_name %}
+                        <span class="badge bg-success" style="font-size: 10px;">{{ w.project_name }}</span>
+                        {% else %}
+                        <span class="badge bg-danger" style="font-size: 10px;">Baitha Hua</span>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="ms-auto text-end">
+                         <span class="text-muted small">Profile ></span>
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
+    {% else %}
+    <div class="col-12 text-center mt-5 text-muted">
+        <p>No workers found in this category.</p>
+    </div>
+    {% endfor %}
+</div>
+
+{% endblock %}

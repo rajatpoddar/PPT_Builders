@@ -1,0 +1,13 @@
+version: '3'
+services:
+  ppt-builders:
+    build: .
+    container_name: ppt_app
+    restart: always
+    ports:
+      - "7782:5000"  # NAS Port 7782 -> App Port 5000
+    volumes:
+      - ./site_data.db:/app/site_data.db  # Database save rahega
+      - ./uploads:/app/uploads            # Photos save rahengi
+    environment:
+      - FLASK_APP=app.py

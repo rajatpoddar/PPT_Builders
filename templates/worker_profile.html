@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4>👤 Worker Profile</h4>
+    <a href="{{ url_for('payments') }}" class="btn btn-secondary btn-sm">Back</a>
+</div>
+
+<div class="card stat-card mb-3">
+    <div class="card-body text-center">
+        {% if w.photo_path %}
+        <img src="{{ url_for('uploaded_file', filename=w.photo_path) }}" class="img-thumbnail mb-3 shadow-sm"
+            style="width: 120px; height: 150px; object-fit: cover;">
+        {% else %}
+        <div class="bg-secondary text-white d-flex align-items-center justify-content-center mx-auto mb-3 rounded shadow-sm"
+            style="width: 150px; height: 120px; font-size: 40px;">👤</div>
+        {% endif %}
+
+        <h3 class="mb-0">{{ w.name }}</h3>
+        <p class="text-muted">{{ w.role }} | {{ w.phone }}</p>
+
+        <div class="d-flex justify-content-center gap-2 mb-3">
+            <span class="badge bg-primary">Days Worked: {{ total_days }}</span>
+            <span class="badge bg-warning text-dark">⭐ Rating: {{ w.rating }}/5</span>
+        </div>
+
+        <div class="alert alert-light border">
+            <strong>Current Site:</strong>
+            {% if w.project_name %}
+            <span class="text-success">{{ w.project_name }}</span>
+            {% else %}
+            <span class="text-danger">Baitha Hua (Idle)</span>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="card stat-card">
+    <div class="card-header bg-white">
+        <strong>⚙️ Update Details</strong>
+    </div>
+    <div class="card-body">
+        <form action="{{ url_for('update_profile', worker_id=w.id) }}" method="POST">
+
+            <label class="small text-muted">Home Address</label>
+            <textarea name="address" class="form-control mb-2" rows="2">{{ w.address or '' }}</textarea>
+
+            <label class="small text-muted">Experience (Kaam ka tajurba)</label>
+            <input type="text" name="experience" class="form-control mb-2" value="{{ w.experience or '' }}"
+                placeholder="e.g. 5 Years in Tiles">
+
+            <label class="small text-muted">Rating (1 to 5 Stars)</label>
+            <select name="rating" class="form-select mb-3">
+                <option value="1" {% if w.rating==1 %}selected{% endif %}>⭐ (Poor)</option>
+                <option value="2" {% if w.rating==2 %}selected{% endif %}>⭐⭐ (Fair)</option>
+                <option value="3" {% if w.rating==3 %}selected{% endif %}>⭐⭐⭐ (Good)</option>
+                <option value="4" {% if w.rating==4 %}selected{% endif %}>⭐⭐⭐⭐ (Very Good)</option>
+                <option value="5" {% if w.rating==5 %}selected{% endif %}>⭐⭐⭐⭐⭐ (Excellent)</option>
+            </select>
+
+            <label class="small text-muted">Transfer/Change Site</label>
+            <select name="project_id" class="form-select mb-3">
+                <option value="0" {% if not w.project_id %}selected{% endif %}>-- Baitha Hua (Idle) --</option>
+                {% for p in projects %}
+                <option value="{{ p.id }}" {% if w.project_id==p.id %}selected{% endif %}>{{ p.name }}</option>
+                {% endfor %}
+            </select>
+
+            <label class="small text-muted">ID Number</label>
+            <input type="text" class="form-control mb-3" value="{{ w.id_number }}" readonly disabled>
+
+            <button type="submit" class="btn btn-success w-100">Update Profile</button>
+        </form>
+    </div>
+</div>
+
+{% endblock %}

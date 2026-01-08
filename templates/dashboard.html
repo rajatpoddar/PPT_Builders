@@ -1,0 +1,99 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<div class="row g-2 mb-3">
+    <div class="col-4">
+        <a href="{{ url_for('worker_list', category='Mistri') }}" class="card stat-card bg-primary text-white text-center p-2">
+            <h3 class="mb-0">{{ t_mistri }}</h3>
+            <small style="font-size: 10px;">Total Mistri</small>
+        </a>
+    </div>
+    <div class="col-4">
+        <a href="{{ url_for('worker_list', category='Labour') }}" class="card stat-card bg-info text-white text-center p-2">
+            <h3 class="mb-0">{{ t_labour }}</h3>
+            <small style="font-size: 10px;">Total Labour</small>
+        </a>
+    </div>
+    <div class="col-4">
+        <a href="{{ url_for('worker_list', category='Idle') }}" class="card stat-card bg-warning text-dark text-center p-2">
+            <h3 class="mb-0">{{ idle_workers }}</h3>
+            <small style="font-size: 10px;">Baitha Hua</small>
+        </a>
+    </div>
+</div>
+
+<div class="d-grid gap-2 mb-4">
+    <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#projectModal">+ New Site/Project</button>
+    <button class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#expenseModal">₹ Add Expense</button>
+</div>
+
+<h6 class="mb-3 text-secondary text-uppercase small ls-1">Project Reports</h6>
+{% for p in p_stats %}
+{% set total_workers = p.m_count + p.l_count %}
+
+<div class="card stat-card mb-3">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center">
+            <h5 class="card-title mb-0">{{ p.name }}</h5>
+            {% if total_workers > 0 %}
+                <span class="badge bg-light text-dark border">
+                    👷 {{ p.m_count }} M | 🧱 {{ p.l_count }} L
+                </span>
+            {% else %}
+                <span class="badge bg-secondary">No Work</span>
+            {% endif %}
+        </div>
+        <hr>
+        <div class="row text-center">
+            <div class="col">
+                <a href="{{ url_for('project_expenses', project_id=p.id) }}" class="text-decoration-none">
+                    <strong class="text-danger d-block fs-5">₹ {{ p.total_expense }}</strong>
+                    <span class="text-muted" style="font-size: 0.8rem;">Click for Details ↗</span>
+                </a>
+            </div>
+            <div class="col border-start">
+                <strong class="text-primary d-block fs-5">{{ total_workers }}</strong>
+                <span class="text-muted" style="font-size: 0.8rem;">Total Staff</span>
+            </div>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="alert alert-light text-center">No projects added yet.</div>
+{% endfor %}
+
+<div class="modal fade" id="projectModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <form action="{{ url_for('add_project') }}" method="POST">
+            <div class="modal-header"><h5 class="modal-title">New Project</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+              <input type="text" name="name" class="form-control mb-2" placeholder="Site Name" required>
+              <input type="text" name="location" class="form-control" placeholder="Location">
+            </div>
+            <div class="modal-footer"><button type="submit" class="btn btn-primary">Save Project</button></div>
+        </form>
+      </div>
+    </div>
+  </div>
+  
+  <div class="modal fade" id="expenseModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <form action="{{ url_for('add_expense') }}" method="POST">
+            <div class="modal-header"><h5 class="modal-title">Add Expense</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+              <select name="project_id" class="form-select mb-2" required>
+                  {% for p in p_stats %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}
+              </select>
+              <input type="text" name="item" class="form-control mb-2" placeholder="Item Name" required>
+              <input type="number" name="amount" class="form-control mb-2" placeholder="Amount" required>
+              <input type="datetime-local" name="date_time" class="form-control mb-2">
+            </div>
+            <div class="modal-footer"><button type="submit" class="btn btn-danger">Save Expense</button></div>
+        </form>
+      </div>
+    </div>
+  </div>
+{% endblock %}

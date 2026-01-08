@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<h4 class="mb-3">📝 Mark Attendance (हाज़िरी)</h4>
+
+<form action="{{ url_for('attendance') }}" method="POST">
+    <div class="mb-3">
+        <label>Select Date:</label>
+        <input type="date" name="attendance_date" value="{{ today_date }}" class="form-control">
+    </div>
+
+    <div class="card stat-card mb-4">
+        <ul class="list-group list-group-flush">
+            {% for w in workers %}
+            <li class="list-group-item">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <strong>{{ w.name }}</strong>
+                    <span class="badge bg-secondary">{{ w.role }}</span>
+                </div>
+                <div class="btn-group w-100" role="group">
+                    <input type="radio" class="btn-check" name="status_{{ w.id }}" value="Present" id="p_{{ w.id }}" checked>
+                    <label class="btn btn-outline-success" for="p_{{ w.id }}">P</label>
+
+                    <input type="radio" class="btn-check" name="status_{{ w.id }}" value="Half Day" id="h_{{ w.id }}">
+                    <label class="btn btn-outline-warning" for="h_{{ w.id }}">Half</label>
+
+                    <input type="radio" class="btn-check" name="status_{{ w.id }}" value="Absent" id="a_{{ w.id }}">
+                    <label class="btn btn-outline-danger" for="a_{{ w.id }}">A</label>
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <button type="submit" class="btn btn-primary w-100 p-2 mb-5">Save Attendance</button>
+</form>
+{% endblock %}

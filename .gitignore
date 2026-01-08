@@ -1,0 +1,19 @@
+# Python temporary files
+__pycache__/
+*.pyc
+
+# Virtual Environment (Bahut heavy hota hai, upload nahi karte)
+venv/
+env/
+
+# Mac system file
+.DS_Store
+
+# Database (Private data - isko upload mat karna)
+site_data.db
+
+# Uploads folder (Photos bhi upload na ho, sirf local rahein)
+uploads/
+
+# VS Code settings
+.vscode/

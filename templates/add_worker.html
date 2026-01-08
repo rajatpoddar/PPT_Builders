@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="card stat-card">
+    <div class="card-header bg-white"><h5>Add New Worker</h5></div>
+    <div class="card-body">
+        <form action="{{ url_for('add_worker') }}" method="POST" enctype="multipart/form-data">
+            
+            <div class="mb-3">
+                <label class="form-label text-muted small">Full Name</label>
+                <input type="text" name="name" class="form-control" required>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label text-muted small">Mobile Number</label>
+                <input type="tel" name="phone" class="form-control">
+            </div>
+            
+            <div class="mb-3">
+                <label class="text-muted small">Daily Wage (दिहाड़ी ₹)</label>
+                <input type="number" name="daily_wage" class="form-control" placeholder="e.g. 500" required>
+            </div>
+
+            <div class="row g-2 mb-3">
+                <div class="col-6">
+                    <label class="form-label text-muted small">Role</label>
+                    <select name="role" class="form-select">
+                        <option value="Labour">Labour</option>
+                        <option value="Mistri">Mistri</option>
+                    </select>
+                </div>
+                <div class="col-6">
+                    <label class="form-label text-muted small">Assign Site</label>
+                    <select name="project_id" class="form-select">
+                        <option value="0" class="text-danger">Idle / Unassigned</option>
+                        {% for project in projects %}
+                        <option value="{{ project['id'] }}">{{ project['name'] }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label text-muted small">ID Number</label>
+                <input type="text" name="id_number" class="form-control">
+            </div>
+
+            <div class="mb-4">
+                <label class="form-label text-muted small">Upload Photo/ID</label>
+                <input type="file" name="photo" class="form-control">
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100 py-2">Save Worker</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

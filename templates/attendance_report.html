@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4>📅 Weekly Attendance</h4>
+    <a href="{{ url_for('attendance') }}" class="btn btn-primary btn-sm">+ Mark Today</a>
+</div>
+
+<div class="card stat-card table-responsive">
+    <table class="table table-bordered text-center table-sm" style="font-size: 0.8rem;">
+        <thead class="table-dark">
+            <tr>
+                <th class="text-start">Name</th>
+                {% for d in dates %}
+                <th>{{ d[-5:] }}</th> 
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in report %}
+            <tr>
+                <td class="text-start fw-bold">{{ row.name }} <br><span class="text-muted small">{{ row.role }}</span></td>
+                {% for status in row.days %}
+                <td>
+                    {% if status == 'Present' %} <span class="text-success fw-bold">P</span>
+                    {% elif status == 'Half Day' %} <span class="text-warning fw-bold">H</span>
+                    {% elif status == 'Absent' %} <span class="text-danger fw-bold">A</span>
+                    {% else %} <span class="text-muted">-</span> {% endif %}
+                </td>
+                {% endfor %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
