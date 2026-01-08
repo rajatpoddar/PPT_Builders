@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="card stat-card mx-auto" style="max-width: 500px;">
+    <div class="card-header bg-warning text-dark">
+        <h5 class="mb-0">✏️ Edit Expense</h5>
+    </div>
+    <div class="card-body">
+        <form method="POST">
+            
+            <label class="small text-muted">Project/Site</label>
+            <select name="project_id" class="form-select mb-3" required>
+                {% for p in projects %}
+                <option value="{{ p.id }}" {% if p.id == expense.project_id %}selected{% endif %}>{{ p.name }}</option>
+                {% endfor %}
+            </select>
+
+            <label class="small text-muted">Item Name</label>
+            <input type="text" name="item" class="form-control mb-3" value="{{ expense.item }}" required>
+
+            <label class="small text-muted">Amount (₹)</label>
+            <input type="number" name="amount" class="form-control mb-3" value="{{ expense.amount }}" required>
+
+            <label class="small text-muted">Date & Time</label>
+            <input type="datetime-local" name="date_time" class="form-control mb-4" value="{{ expense.date_time.replace(' ', 'T') }}">
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary flex-grow-1">Update Change</button>
+                <a href="{{ url_for('delete_expense', expense_id=expense.id) }}" class="btn btn-outline-danger" onclick="return confirm('Are you sure you want to delete this expense?');">Delete</a>
+            </div>
+            
+            <a href="{{ url_for('expense_log') }}" class="btn btn-link w-100 mt-2 text-decoration-none text-muted">Cancel</a>
+        </form>
+    </div>
+</div>
+
+{% endblock %}

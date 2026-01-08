@@ -10,10 +10,10 @@
     <div class="card-body text-center">
         {% if w.photo_path %}
         <img src="{{ url_for('uploaded_file', filename=w.photo_path) }}" class="img-thumbnail mb-3 shadow-sm"
-            style="width: 120px; height: 150px; object-fit: cover;">
+            style="width: 150px; height: 120px; object-fit: cover;">
         {% else %}
         <div class="bg-secondary text-white d-flex align-items-center justify-content-center mx-auto mb-3 rounded shadow-sm"
-            style="width: 150px; height: 120px; font-size: 40px;">👤</div>
+            style="width: 120px; height: 150px; font-size: 40px;">👤</div>
         {% endif %}
 
         <h3 class="mb-0">{{ w.name }}</h3>

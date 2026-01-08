@@ -3,7 +3,7 @@
 
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
-        <h5 class="mb-0">💸 Expenses</h5>
+        <h5 class="mb-0">💸 Expenses Log</h5>
         <small class="text-muted">For: {{ project_name if project_name else 'All Projects' }}</small>
     </div>
     <a href="{{ url_for('dashboard') }}" class="btn btn-sm btn-secondary">Back</a>
@@ -12,7 +12,7 @@
 <div class="card stat-card">
     <div class="card-body p-0">
         <div class="table-responsive">
-            <table class="table table-striped mb-0">
+            <table class="table table-striped mb-0 align-middle">
                 <thead class="bg-light">
                     <tr>
                         <th>Date</th>
@@ -21,19 +21,24 @@
                         <th>Project</th>
                         {% endif %}
                         <th class="text-end">Amount</th>
-                    </tr>
+                        <th class="text-center">Action</th> </tr>
                 </thead>
                 <tbody>
                     {% for exp in expenses %}
                     <tr>
-                        <td class="small">{{ exp.date_time[-14:] }}</td> <td>{{ exp.item }}</td>
+                        <td class="small">{{ exp.date_time[-14:] }}</td> 
+                        <td>{{ exp.item }}</td>
                         {% if not project_name or project_name == 'All Projects' %}
                         <td><span class="badge bg-info text-dark">{{ exp.project_name }}</span></td>
                         {% endif %}
                         <td class="text-end text-danger fw-bold">₹{{ exp.amount }}</td>
+                        
+                        <td class="text-center">
+                            <a href="{{ url_for('edit_expense', expense_id=exp.id) }}" class="btn btn-sm btn-light border">✏️</a>
+                        </td>
                     </tr>
                     {% else %}
-                    <tr><td colspan="4" class="text-center py-3">No expenses found.</td></tr>
+                    <tr><td colspan="5" class="text-center py-3">No expenses found.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>

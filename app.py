@@ -168,6 +168,45 @@ def worker_list(category):
     return render_template('worker_list.html', workers=workers, title=title)
 
 # --- NEW ROUTE: Filtered Expenses ---
+# --- NEW: Edit Expense Route ---
+@app.route('/edit_expense/<int:expense_id>', methods=['GET', 'POST'])
+@login_required
+def edit_expense(expense_id):
+    conn = get_db_connection()
+    
+    # Agar Form Submit hua hai (Save Changes)
+    if request.method == 'POST':
+        item = request.form['item']
+        amount = request.form['amount']
+        date_time = request.form['date_time'].replace('T', ' ')
+        project_id = request.form['project_id']
+        
+        conn.execute('''UPDATE expenses 
+                        SET item=?, amount=?, date_time=?, project_id=? 
+                        WHERE id=?''', 
+                     (item, amount, date_time, project_id, expense_id))
+        conn.commit()
+        conn.close()
+        flash('Expense updated successfully!')
+        return redirect(url_for('expense_log'))
+
+    # Agar Edit Page kholna hai (Get Data)
+    expense = conn.execute("SELECT * FROM expenses WHERE id=?", (expense_id,)).fetchone()
+    projects = conn.execute("SELECT * FROM projects").fetchall()
+    conn.close()
+    return render_template('edit_expense.html', expense=expense, projects=projects)
+
+# --- NEW: Delete Expense Route ---
+@app.route('/delete_expense/<int:expense_id>')
+@login_required
+def delete_expense(expense_id):
+    conn = get_db_connection()
+    conn.execute("DELETE FROM expenses WHERE id=?", (expense_id,)).fetchone()
+    conn.commit()
+    conn.close()
+    flash('Expense deleted successfully!')
+    return redirect(url_for('expense_log'))
+    
 @app.route('/project_expenses/<int:project_id>')
 @login_required
 def project_expenses(project_id):
