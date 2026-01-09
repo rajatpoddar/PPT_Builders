@@ -17,3 +17,6 @@ uploads/
 
 # VS Code settings
 .vscode/
+
+# Scripts
+update.sh
