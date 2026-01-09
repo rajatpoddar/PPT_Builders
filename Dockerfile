@@ -7,7 +7,7 @@ WORKDIR /app
 # Copy Requirements
 COPY requirements.txt .
 
-# Install Dependencies
+# Install Dependencies (Gunicorn bhi install hoga ab)
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy All Code
@@ -16,8 +16,10 @@ COPY . .
 # Create uploads folder inside container
 RUN mkdir -p uploads
 
-# Expose Port (Internally 5000, we map it later)
+# Expose Port
 EXPOSE 5000
 
-# Command to run
-CMD ["python", "app.py"]
+# --- CHANGE IS HERE ---
+# Purana: CMD ["python", "app.py"]
+# Naya (Production Wala):
+CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:5000", "app:app"]

@@ -3,7 +3,7 @@
 <div class="card stat-card">
     <div class="card-header bg-white"><h5>Add New Worker</h5></div>
     <div class="card-body">
-        <form action="{{ url_for('add_worker') }}" method="POST" enctype="multipart/form-data">
+        <form id="workerForm" action="{{ url_for('add_worker') }}" method="POST" enctype="multipart/form-data">
             
             <div class="mb-3">
                 <label class="form-label text-muted small">Full Name</label>
@@ -11,7 +11,7 @@
             </div>
 
             <div class="mb-3">
-                <label class="form-label text-muted small">Mobile Number</label>
+                <label class="form-label text-muted small">Mobile Number (Optional)</label>
                 <input type="tel" name="phone" class="form-control">
             </div>
             
@@ -46,11 +46,100 @@
 
             <div class="mb-4">
                 <label class="form-label text-muted small">Upload Photo/ID</label>
-                <input type="file" name="photo" class="form-control">
+                <input type="file" name="photo" id="photoInput" class="form-control" accept="image/*">
+                <div id="compressionMsg" class="text-primary small mt-2 fw-bold" style="display:none;">
+                    ⏳ Compressing photo...
+                </div>
             </div>
 
-            <button type="submit" class="btn btn-primary w-100 py-2">Save Worker</button>
+            <button type="submit" id="submitBtn" class="btn btn-primary w-100 py-2">Save Worker</button>
         </form>
     </div>
 </div>
+
+<script>
+// 1. Submit button par Loading animation
+document.getElementById('workerForm').addEventListener('submit', function(e) {
+    const btn = document.getElementById('submitBtn');
+    // Button disable kardo taki do baar click na ho
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Saving...';
+});
+
+// 2. Image Compression Logic
+document.getElementById('photoInput').addEventListener('change', async function(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Agar file 1MB se chhoti hai to compress mat karo
+    if (file.size < 1024 * 1024) return;
+
+    const msg = document.getElementById('compressionMsg');
+    msg.style.display = 'block';
+    msg.innerHTML = '⏳ Badi photo hai, compress kar raha hu... (Wait)';
+    msg.classList.remove('text-success', 'text-danger');
+    msg.classList.add('text-primary');
+
+    try {
+        const compressedFile = await compressImage(file);
+        
+        // Input field me compressed file daal do
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(compressedFile);
+        event.target.files = dataTransfer.files;
+
+        msg.innerHTML = '✅ Photo Compress Ho Gayi! (Ab Upload Fast Hoga)';
+        msg.classList.remove('text-primary');
+        msg.classList.add('text-success');
+    } catch (error) {
+        console.error("Compression failed", error);
+        msg.innerHTML = '⚠️ Compression failed, original photo hi jayegi.';
+        msg.classList.add('text-danger');
+    }
+});
+
+function compressImage(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = function(event) {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = function() {
+                const canvas = document.createElement('canvas');
+                // Maximum width 1000px rakhenge (kaafi hai ID/Face ke liye)
+                const MAX_WIDTH = 1000;
+                let width = img.width;
+                let height = img.height;
+
+                if (width > MAX_WIDTH) {
+                    height *= MAX_WIDTH / width;
+                    width = MAX_WIDTH;
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+
+                // JPEG format me 70% quality par convert karo
+                canvas.toBlob((blob) => {
+                    if (!blob) {
+                        reject();
+                        return;
+                    }
+                    const newFile = new File([blob], file.name, {
+                        type: 'image/jpeg',
+                        lastModified: Date.now(),
+                    });
+                    resolve(newFile);
+                }, 'image/jpeg', 0.7);
+            };
+            img.onerror = reject;
+        };
+        reader.onerror = reject;
+    });
+}
+</script>
 {% endblock %}
