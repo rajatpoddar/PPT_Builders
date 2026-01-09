@@ -3,49 +3,94 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>PPT Builders - Projects</title>
+    <title>PPT Builders - Live Status</title>
+    
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='logo.png') }}">
+    
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        body { background: #f8f9fa; }
-        .hero { background: linear-gradient(135deg, #0d6efd, #0dcaf0); color: white; padding: 40px 20px; border-radius: 0 0 30px 30px; margin-bottom: 30px; }
-        .project-card { border: none; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.08); transition: transform 0.2s; }
-        .project-card:hover { transform: translateY(-5px); }
+        body { background: #f4f6f9; font-family: 'Segoe UI', sans-serif; }
+        .hero { 
+            background: linear-gradient(135deg, #0d6efd, #0dcaf0); 
+            color: white; 
+            padding: 50px 20px 80px 20px; 
+            border-radius: 0 0 30px 30px; 
+            margin-bottom: -40px; 
+            text-align: center;
+        }
+        .stat-card { 
+            border-radius: 12px; 
+            border: none; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05); 
+            transition: transform 0.2s; 
+        }
+        .stat-card:hover { transform: translateY(-3px); }
     </style>
 </head>
 <body>
-    <div class="hero text-center">
-        <h1>🏗️ PPT Builders</h1>
-        <p class="mb-0">Live Site Status & Expense Report</p>
-        <a href="{{ url_for('login') }}" class="btn btn-outline-light btn-sm mt-3">Admin Login</a>
+    
+    <div class="hero">
+        <h1 class="fw-bold">🏗️ PPT Builders</h1>
+        <p class="mb-3 opacity-75">Live Site Status & Cost Report</p>
+        <a href="{{ url_for('login') }}" class="btn btn-light btn-sm fw-bold px-4 rounded-pill shadow-sm text-primary">Admin Login 🔐</a>
     </div>
 
-    <div class="container">
+    <div class="container pb-5">
         <div class="row">
             {% for p in stats %}
             <div class="col-md-6 mb-4">
-                <div class="card project-card">
-                    <div class="card-body">
-                        <h5 class="card-title fw-bold text-primary">{{ p.name }}</h5>
-                        <p class="text-muted small">📍 {{ p.location }}</p>
-                        <hr>
+                <div class="card stat-card">
+                    <div class="card-body p-4">
+                        
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <div>
+                                <h5 class="card-title mb-0 fw-bold text-dark">{{ p.name }}</h5>
+                                <small class="text-muted">📍 {{ p.location }}</small>
+                            </div>
+                            {% set total_workers = p.mistri + p.labour %}
+                            {% if total_workers > 0 %}
+                                <span class="badge bg-light text-dark border">
+                                    👷 {{ p.mistri }} M | 🧱 {{ p.labour }} L
+                                </span>
+                            {% else %}
+                                <span class="badge bg-light text-muted border" style="font-size: 10px;">Stopped</span>
+                            {% endif %}
+                        </div>
+
+                        <hr class="my-3 opacity-25">
+
                         <div class="row text-center">
                             <div class="col border-end">
-                                <span class="h4 d-block text-danger">₹{{ p.expense }}</span>
-                                <small class="text-muted">Total Expense</small>
+                                <small class="text-muted text-uppercase" style="font-size: 10px; letter-spacing: 1px;">Material</small>
+                                <strong class="text-danger d-block fs-5">₹{{ p.expense }}</strong>
+                            </div>
+                            <div class="col border-end">
+                                <small class="text-muted text-uppercase" style="font-size: 10px; letter-spacing: 1px;">Paid</small>
+                                <strong class="text-success d-block fs-5">₹{{ p.payment }}</strong>
                             </div>
                             <div class="col">
-                                <span class="d-block fw-bold">{{ p.mistri }} Mistri</span>
-                                <span class="d-block fw-bold">{{ p.labour }} Labour</span>
-                                <small class="text-success">Engaged</small>
+                                <small class="text-muted text-uppercase" style="font-size: 10px; letter-spacing: 1px;">Total</small>
+                                <strong class="text-dark d-block fs-5">₹{{ p.grand_total }}</strong>
                             </div>
                         </div>
+
                     </div>
                 </div>
             </div>
             {% else %}
-            <div class="text-center text-muted">No active projects to display.</div>
+            <div class="col-12 text-center text-muted mt-5">
+                <p>No active projects found.</p>
+            </div>
             {% endfor %}
         </div>
+        
+        <div class="text-center mt-4 text-muted small opacity-50">
+            &copy; 2026 PPT Builders Manager
+        </div>
     </div>
+
 </body>
 </html>

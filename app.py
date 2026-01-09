@@ -73,12 +73,43 @@ def service_worker():
 def public_home():
     conn = get_db_connection()
     projects = conn.execute("SELECT * FROM projects").fetchall()
+    
+    # 1. Expenses Sum (Material)
+    expenses_map = {}
+    exp_rows = conn.execute("SELECT project_id, SUM(amount) FROM expenses GROUP BY project_id").fetchall()
+    for row in exp_rows: expenses_map[row['project_id']] = row[1] or 0
+        
+    # 2. Workers Count
+    workers_map = {} 
+    w_rows = conn.execute("SELECT project_id, role, COUNT(*) FROM workers GROUP BY project_id, role").fetchall()
+    for row in w_rows:
+        pid = row['project_id']
+        role = row['role']
+        if pid not in workers_map: workers_map[pid] = {'Mistri': 0, 'Labour': 0}
+        if role in workers_map[pid]: workers_map[pid][role] = row[2]
+
+    # 3. Payments Sum (Labour Paid) - New for Public Home
+    payments_map = {}
+    pay_rows = conn.execute('''SELECT w.project_id, SUM(p.amount) FROM payments p 
+                               JOIN workers w ON p.worker_id = w.id 
+                               GROUP BY w.project_id''').fetchall()
+    for row in pay_rows: payments_map[row['project_id']] = row[1] or 0
+
     public_stats = []
     for p in projects:
-        exp = conn.execute("SELECT SUM(amount) FROM expenses WHERE project_id=?", (p['id'],)).fetchone()[0] or 0
-        mistri = conn.execute("SELECT COUNT(*) FROM workers WHERE project_id=? AND role='Mistri'", (p['id'],)).fetchone()[0]
-        labour = conn.execute("SELECT COUNT(*) FROM workers WHERE project_id=? AND role='Labour'", (p['id'],)).fetchone()[0]
-        public_stats.append({'name': p['name'], 'location': p['location'], 'expense': exp, 'mistri': mistri, 'labour': labour})
+        exp = expenses_map.get(p['id'], 0)
+        pay = payments_map.get(p['id'], 0)
+        counts = workers_map.get(p['id'], {'Mistri': 0, 'Labour': 0})
+        
+        public_stats.append({
+            'name': p['name'], 
+            'location': p['location'], 
+            'expense': exp, 
+            'payment': pay,             # New
+            'grand_total': exp + pay,   # New
+            'mistri': counts['Mistri'], 
+            'labour': counts['Labour']
+        })
     conn.close()
     return render_template('public_home.html', stats=public_stats)
 
