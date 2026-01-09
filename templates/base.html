@@ -11,24 +11,51 @@
     <title>PPT Builders</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        body { background-color: #f4f6f9; font-family: sans-serif; padding-top: 60px; }
+        body { background-color: #f4f6f9; font-family: 'Segoe UI', sans-serif; padding-top: 70px; } /* Padding increased slightly */
         .stat-card { border-radius: 12px; border: none; box-shadow: 0 2px 5px rgba(0,0,0,0.05); text-decoration: none; display: block; color: inherit; transition: transform 0.1s; }
         .stat-card:active { transform: scale(0.98); }
         .mobile-nav { position: fixed; bottom: 0; left: 0; width: 100%; background: white; z-index: 1000; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); border-top: 1px solid #eee; }
         .nav-btn { text-decoration: none; color: #666; text-align: center; font-size: 12px; padding: 5px; flex: 1; }
         .nav-btn:hover, .nav-btn:active { color: #0d6efd; background-color: #f8f9fa; }
         .nav-icon { font-size: 1.2rem; display: block; margin-bottom: 2px; }
+        
+        /* New Header Styles */
+        .navbar { backdrop-filter: blur(10px); background-color: rgba(13, 110, 253, 0.95) !important; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+        .user-avatar { width: 35px; height: 35px; background: white; color: #0d6efd; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 2px solid rgba(255,255,255,0.2); }
     </style>
   </head>
   <body>
     
-    <nav class="navbar navbar-dark bg-primary fixed-top">
-      <div class="container-fluid">
-        <span class="navbar-brand mb-0 h1 fw-bold">🏗️ PPT Builders</span>
+    <nav class="navbar navbar-dark fixed-top">
+      <div class="container-fluid px-3">
+        <a class="navbar-brand mb-0 h1 fw-bold d-flex align-items-center gap-2" href="{{ url_for('dashboard') if current_user.is_authenticated else url_for('public_home') }}">
+           <span>🏗️</span> <span>PPT Builders</span>
+        </a>
+
         {% if current_user.is_authenticated %}
-        <div>
-            <a href="{{ url_for('change_password') }}" class="btn btn-sm btn-outline-light me-1">🔑</a>
-            <a href="{{ url_for('logout') }}" class="btn btn-sm btn-light text-danger fw-bold">🚪</a>
+        <div class="dropdown">
+            <button class="btn btn-link text-decoration-none p-0 border-0" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <div class="user-avatar shadow-sm">
+                    {{ current_user.username[0]|upper }}
+                </div>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 rounded-3 mt-2" style="min-width: 220px;">
+                <li class="px-3 py-2 border-bottom mb-1 bg-light">
+                    <small class="text-muted d-block" style="font-size: 11px;">SIGNED IN AS</small>
+                    <strong class="text-dark">{{ current_user.username }}</strong>
+                </li>
+                <li>
+                    <a class="dropdown-item py-2 d-flex align-items-center gap-2" href="{{ url_for('change_password') }}">
+                        <span>🔐</span> Change Password
+                    </a>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                <li>
+                    <a class="dropdown-item py-2 text-danger d-flex align-items-center gap-2 bg-light-hover" href="{{ url_for('logout') }}">
+                        <span>🚪</span> <strong>Logout</strong>
+                    </a>
+                </li>
+            </ul>
         </div>
         {% endif %}
       </div>
@@ -38,7 +65,7 @@
         {% with messages = get_flashed_messages() %}
           {% if messages %}
             {% for message in messages %}
-              <div class="alert alert-info py-2">{{ message }}</div>
+              <div class="alert alert-info py-2 shadow-sm border-0 rounded-3">{{ message }}</div>
             {% endfor %}
           {% endif %}
         {% endwith %}

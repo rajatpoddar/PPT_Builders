@@ -138,12 +138,36 @@ def dashboard():
     idle_workers = conn.execute("SELECT COUNT(*) FROM workers WHERE project_id IS NULL OR project_id = 0").fetchone()[0]
     
     projects = conn.execute("SELECT * FROM projects").fetchall()
+    
+    # --- SPEED OPTIMIZATION START (Ek baar mein data lana) ---
+    # Expenses pre-fetch
+    expenses_map = {}
+    exp_rows = conn.execute("SELECT project_id, SUM(amount) FROM expenses GROUP BY project_id").fetchall()
+    for row in exp_rows:
+        expenses_map[row['project_id']] = row[1] or 0
+        
+    # Workers count pre-fetch
+    workers_map = {} 
+    w_rows = conn.execute("SELECT project_id, role, COUNT(*) FROM workers GROUP BY project_id, role").fetchall()
+    for row in w_rows:
+        pid = row['project_id']
+        role = row['role']
+        if pid not in workers_map: workers_map[pid] = {'Mistri': 0, 'Labour': 0}
+        if role in workers_map[pid]: workers_map[pid][role] = row[2]
+
     project_stats = []
     for p in projects:
-        exp = conn.execute("SELECT SUM(amount) FROM expenses WHERE project_id=?", (p['id'],)).fetchone()[0]
-        m_count = conn.execute("SELECT COUNT(*) FROM workers WHERE project_id=? AND role='Mistri'", (p['id'],)).fetchone()[0]
-        l_count = conn.execute("SELECT COUNT(*) FROM workers WHERE project_id=? AND role='Labour'", (p['id'],)).fetchone()[0]
-        project_stats.append({'id': p['id'], 'name': p['name'], 'total_expense': exp if exp else 0, 'm_count': m_count, 'l_count': l_count})
+        exp = expenses_map.get(p['id'], 0)
+        counts = workers_map.get(p['id'], {'Mistri': 0, 'Labour': 0})
+        project_stats.append({
+            'id': p['id'], 
+            'name': p['name'], 
+            'total_expense': exp, 
+            'm_count': counts['Mistri'], 
+            'l_count': counts['Labour']
+        })
+    # --- SPEED OPTIMIZATION END ---
+    
     conn.close()
     return render_template('dashboard.html', t_mistri=t_mistri, t_labour=t_labour, p_stats=project_stats, idle_workers=idle_workers)
 
@@ -206,7 +230,7 @@ def delete_expense(expense_id):
     conn.close()
     flash('Expense deleted successfully!')
     return redirect(url_for('expense_log'))
-    
+
 @app.route('/project_expenses/<int:project_id>')
 @login_required
 def project_expenses(project_id):
@@ -315,15 +339,36 @@ def payments():
                      (request.form['worker_id'], request.form['amount'], request.form['date']))
         conn.commit()
         return redirect(url_for('payments'))
+    
     workers = conn.execute('''SELECT w.*, p.name as project_name FROM workers w LEFT JOIN projects p ON w.project_id = p.id''').fetchall()
+    
+    # --- SPEED OPTIMIZATION START ---
+    # Attendance Count Pre-fetch
+    att_map = {} 
+    att_rows = conn.execute("SELECT worker_id, status, COUNT(*) FROM attendance GROUP BY worker_id, status").fetchall()
+    for row in att_rows:
+        wid = row['worker_id']
+        status = row['status']
+        if wid not in att_map: att_map[wid] = {'Present': 0, 'Half Day': 0}
+        if status in att_map[wid]: att_map[wid][status] = row[2]
+        
+    # Payments Sum Pre-fetch
+    pay_map = {}
+    pay_rows = conn.execute("SELECT worker_id, SUM(amount) FROM payments GROUP BY worker_id").fetchall()
+    for row in pay_rows:
+        pay_map[row['worker_id']] = row[1] or 0
+    # --- SPEED OPTIMIZATION END ---
+
     payment_summary = []
     t_paid = 0
     t_due = 0
     for w in workers:
-        p_days = conn.execute("SELECT COUNT(*) FROM attendance WHERE worker_id=? AND status='Present'", (w['id'],)).fetchone()[0]
-        h_days = conn.execute("SELECT COUNT(*) FROM attendance WHERE worker_id=? AND status='Half Day'", (w['id'],)).fetchone()[0]
+        stats = att_map.get(w['id'], {'Present': 0, 'Half Day': 0})
+        p_days = stats['Present']
+        h_days = stats['Half Day']
+        
         total_earned = (p_days * w['daily_wage']) + (h_days * (w['daily_wage']/2))
-        total_paid = conn.execute("SELECT SUM(amount) FROM payments WHERE worker_id=?", (w['id'],)).fetchone()[0] or 0
+        total_paid = pay_map.get(w['id'], 0)
         balance = total_earned - total_paid
         t_paid += total_paid
         t_due += balance
@@ -346,8 +391,14 @@ def worker_profile(worker_id):
 @login_required
 def update_profile(worker_id):
     conn = get_db_connection()
-    conn.execute('''UPDATE workers SET address=?, experience=?, rating=?, project_id=? WHERE id=?''', 
-                 (request.form['address'], request.form['experience'], request.form['rating'], request.form['project_id'], worker_id))
+    # Name, Phone, Wage, Role sab update hoga ab
+    conn.execute('''UPDATE workers SET 
+                    name=?, phone=?, role=?, daily_wage=?, 
+                    address=?, experience=?, rating=?, project_id=? 
+                    WHERE id=?''', 
+                 (request.form['name'], request.form['phone'], request.form['role'], request.form['daily_wage'],
+                  request.form['address'], request.form['experience'], request.form['rating'], request.form['project_id'], 
+                  worker_id))
     conn.commit()
     conn.close()
     return redirect(url_for('worker_profile', worker_id=worker_id))

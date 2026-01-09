@@ -17,11 +17,11 @@
         {% endif %}
 
         <h3 class="mb-0">{{ w.name }}</h3>
-        <p class="text-muted">{{ w.role }} | {{ w.phone }}</p>
+        <p class="text-muted">{{ w.role }} | {{ w.phone or 'No Phone' }}</p>
 
         <div class="d-flex justify-content-center gap-2 mb-3">
             <span class="badge bg-primary">Days Worked: {{ total_days }}</span>
-            <span class="badge bg-warning text-dark">⭐ Rating: {{ w.rating }}/5</span>
+            <span class="badge bg-success">Wage: ₹{{ w.daily_wage }}</span>
         </div>
 
         <div class="alert alert-light border">
@@ -35,41 +35,68 @@
     </div>
 </div>
 
-<div class="card stat-card">
+<div class="card stat-card mb-5">
     <div class="card-header bg-white">
-        <strong>⚙️ Update Details</strong>
+        <strong>⚙️ Update Full Details</strong>
     </div>
     <div class="card-body">
         <form action="{{ url_for('update_profile', worker_id=w.id) }}" method="POST">
 
+            <div class="row g-2">
+                <div class="col-6">
+                    <label class="small text-muted">Full Name</label>
+                    <input type="text" name="name" class="form-control mb-2" value="{{ w.name }}" required>
+                </div>
+                <div class="col-6">
+                    <label class="small text-muted">Daily Wage (₹)</label>
+                    <input type="number" name="daily_wage" class="form-control mb-2" value="{{ w.daily_wage }}" required>
+                </div>
+            </div>
+
+            <div class="row g-2">
+                <div class="col-6">
+                    <label class="small text-muted">Role</label>
+                    <select name="role" class="form-select mb-2">
+                        <option value="Mistri" {% if w.role == 'Mistri' %}selected{% endif %}>Mistri</option>
+                        <option value="Labour" {% if w.role == 'Labour' %}selected{% endif %}>Labour</option>
+                    </select>
+                </div>
+                <div class="col-6">
+                    <label class="small text-muted">Mobile (Optional)</label>
+                    <input type="tel" name="phone" class="form-control mb-2" value="{{ w.phone or '' }}" placeholder="No Number">
+                </div>
+            </div>
+
             <label class="small text-muted">Home Address</label>
             <textarea name="address" class="form-control mb-2" rows="2">{{ w.address or '' }}</textarea>
 
-            <label class="small text-muted">Experience (Kaam ka tajurba)</label>
+            <label class="small text-muted">Experience</label>
             <input type="text" name="experience" class="form-control mb-2" value="{{ w.experience or '' }}"
-                placeholder="e.g. 5 Years in Tiles">
+                placeholder="e.g. 5 Years">
 
-            <label class="small text-muted">Rating (1 to 5 Stars)</label>
-            <select name="rating" class="form-select mb-3">
-                <option value="1" {% if w.rating==1 %}selected{% endif %}>⭐ (Poor)</option>
-                <option value="2" {% if w.rating==2 %}selected{% endif %}>⭐⭐ (Fair)</option>
-                <option value="3" {% if w.rating==3 %}selected{% endif %}>⭐⭐⭐ (Good)</option>
-                <option value="4" {% if w.rating==4 %}selected{% endif %}>⭐⭐⭐⭐ (Very Good)</option>
-                <option value="5" {% if w.rating==5 %}selected{% endif %}>⭐⭐⭐⭐⭐ (Excellent)</option>
-            </select>
+            <div class="row g-2 mb-3">
+                <div class="col-6">
+                    <label class="small text-muted">Rating</label>
+                    <select name="rating" class="form-select">
+                        <option value="1" {% if w.rating==1 %}selected{% endif %}>⭐</option>
+                        <option value="2" {% if w.rating==2 %}selected{% endif %}>⭐⭐</option>
+                        <option value="3" {% if w.rating==3 %}selected{% endif %}>⭐⭐⭐</option>
+                        <option value="4" {% if w.rating==4 %}selected{% endif %}>⭐⭐⭐⭐</option>
+                        <option value="5" {% if w.rating==5 %}selected{% endif %}>⭐⭐⭐⭐⭐</option>
+                    </select>
+                </div>
+                <div class="col-6">
+                    <label class="small text-muted">Transfer Site</label>
+                    <select name="project_id" class="form-select">
+                        <option value="0" {% if not w.project_id %}selected{% endif %}>-- Baitha Hua --</option>
+                        {% for p in projects %}
+                        <option value="{{ p.id }}" {% if w.project_id==p.id %}selected{% endif %}>{{ p.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
 
-            <label class="small text-muted">Transfer/Change Site</label>
-            <select name="project_id" class="form-select mb-3">
-                <option value="0" {% if not w.project_id %}selected{% endif %}>-- Baitha Hua (Idle) --</option>
-                {% for p in projects %}
-                <option value="{{ p.id }}" {% if w.project_id==p.id %}selected{% endif %}>{{ p.name }}</option>
-                {% endfor %}
-            </select>
-
-            <label class="small text-muted">ID Number</label>
-            <input type="text" class="form-control mb-3" value="{{ w.id_number }}" readonly disabled>
-
-            <button type="submit" class="btn btn-success w-100">Update Profile</button>
+            <button type="submit" class="btn btn-warning w-100">Update All Details</button>
         </form>
     </div>
 </div>
