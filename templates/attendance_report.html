@@ -1,12 +1,11 @@
 {% extends 'base.html' %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <h4>📅 Weekly Attendance</h4>
-    <a href="{{ url_for('attendance') }}" class="btn btn-primary btn-sm">+ Mark Today</a>
-</div>
+    <h4>📅 Weekly Report</h4>
+    </div>
 
-<div class="card stat-card table-responsive">
-    <table class="table table-bordered text-center table-sm" style="font-size: 0.8rem;">
+<div class="d-none d-md-block card stat-card table-responsive">
+    <table class="table table-bordered text-center table-sm align-middle mb-0" style="font-size: 0.9rem;">
         <thead class="table-dark">
             <tr>
                 <th class="text-start">Name</th>
@@ -18,12 +17,15 @@
         <tbody>
             {% for row in report %}
             <tr>
-                <td class="text-start fw-bold">{{ row.name }} <br><span class="text-muted small">{{ row.role }}</span></td>
+                <td class="text-start">
+                    <strong>{{ row.name }}</strong><br>
+                    <span class="text-muted small">{{ row.role }}</span>
+                </td>
                 {% for status in row.days %}
                 <td>
-                    {% if status == 'Present' %} <span class="text-success fw-bold">P</span>
-                    {% elif status == 'Half Day' %} <span class="text-warning fw-bold">H</span>
-                    {% elif status == 'Absent' %} <span class="text-danger fw-bold">A</span>
+                    {% if status == 'Present' %} <span class="badge bg-success">P</span>
+                    {% elif status == 'Half Day' %} <span class="badge bg-warning text-dark">H</span>
+                    {% elif status == 'Absent' %} <span class="badge bg-danger">A</span>
                     {% else %} <span class="text-muted">-</span> {% endif %}
                 </td>
                 {% endfor %}
@@ -32,4 +34,44 @@
         </tbody>
     </table>
 </div>
+
+<div class="d-md-none pb-5">
+    {% for row in report %}
+    <div class="card stat-card mb-3 border-0 shadow-sm">
+        <div class="card-body p-3">
+            <div class="d-flex justify-content-between mb-2">
+                <h6 class="fw-bold mb-0">{{ row.name }}</h6>
+                <small class="text-muted">{{ row.role }}</small>
+            </div>
+            
+            <div class="d-flex overflow-auto gap-2 pb-2" style="scrollbar-width: none;">
+                {% for status in row.days %}
+                <div class="text-center" style="min-width: 45px;">
+                    <small class="text-muted d-block mb-1" style="font-size: 10px;">
+                        {{ dates[loop.index0][-5:] }}
+                    </small>
+                    
+                    {% if status == 'Present' %}
+                    <div class="rounded-circle bg-success text-white d-flex align-items-center justify-content-center mx-auto" style="width: 35px; height: 35px; font-weight: bold;">P</div>
+                    {% elif status == 'Half Day' %}
+                    <div class="rounded-circle bg-warning text-dark d-flex align-items-center justify-content-center mx-auto" style="width: 35px; height: 35px; font-weight: bold;">H</div>
+                    {% elif status == 'Absent' %}
+                    <div class="rounded-circle bg-danger text-white d-flex align-items-center justify-content-center mx-auto" style="width: 35px; height: 35px; font-weight: bold;">A</div>
+                    {% else %}
+                    <div class="rounded-circle bg-light border d-flex align-items-center justify-content-center mx-auto" style="width: 35px; height: 35px; color: #ccc;">-</div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<a href="{{ url_for('attendance') }}" 
+   class="btn btn-primary rounded-circle shadow-lg d-flex align-items-center justify-content-center" 
+   style="position: fixed; bottom: 80px; right: 20px; width: 60px; height: 60px; z-index: 1000; font-size: 30px; text-decoration: none;">
+    📝
+</a>
+
 {% endblock %}

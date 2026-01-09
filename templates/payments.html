@@ -3,81 +3,121 @@
 
 <h4 class="mb-3">💰 Payment Register</h4>
 
-<div class="row g-2 mb-3">
+<div class="row g-2 mb-4">
     <div class="col-6">
-        <div class="card stat-card bg-success text-white text-center p-3">
-            <h4 class="mb-0">₹{{ t_paid }}</h4>
-            <small>Total Paid</small>
+        <div class="card stat-card bg-success text-white text-center p-3 border-0 shadow-sm">
+            <h3 class="mb-0">₹{{ t_paid|int }}</h3>
+            <small class="text-white-50">Total Paid</small>
         </div>
     </div>
     <div class="col-6">
-        <div class="card stat-card bg-danger text-white text-center p-3">
-            <h4 class="mb-0">₹{{ t_due }}</h4>
-            <small>Total Due</small>
+        <div class="card stat-card bg-danger text-white text-center p-3 border-0 shadow-sm">
+            <h3 class="mb-0">₹{{ t_due|int }}</h3>
+            <small class="text-white-50">Total Due</small>
         </div>
     </div>
 </div>
 
-<div class="card stat-card mb-4 bg-light border">
-    <div class="card-body">
-        <h6 class="card-title text-muted">Make New Payment</h6>
-        <form action="{{ url_for('payments') }}" method="POST" class="row g-2">
-            <div class="col-6">
-                <select name="worker_id" class="form-select form-select-sm" required>
-                    <option value="">Select Worker</option>
-                    {% for s in summary %}
-                    <option value="{{ s.id }}">{{ s.name }}</option>
-                    {% endfor %}
-                </select>
+<div class="row pb-5"> {% for s in summary %}
+<div class="col-md-6 mb-3">
+    <div class="card stat-card border-0 shadow-sm">
+        <div class="card-body p-3">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <div>
+                    <a href="{{ url_for('worker_profile', worker_id=s.id) }}" class="text-decoration-none text-dark">
+                        <h5 class="mb-0 fw-bold">{{ s.name }}</h5>
+                    </a>
+                    {% if s.project_name %}
+                    <span class="badge bg-light text-secondary border mt-1">{{ s.project_name }}</span>
+                    {% else %}
+                    <span class="badge bg-warning text-dark mt-1">Idle</span>
+                    {% endif %}
+                </div>
+                <div class="text-end">
+                    <button class="btn btn-sm btn-outline-primary px-3" onclick="openPaymentModal('{{ s.id }}')">
+                        Pay 💸
+                    </button>
+                </div>
             </div>
-            <div class="col-3">
-                <input type="number" name="amount" class="form-control form-select-sm" placeholder="₹" required>
-            </div>
-            <div class="col-3">
-                <input type="date" name="date" value="{{ today }}" class="form-control form-select-sm" required>
-            </div>
-            <div class="col-12">
-                <button type="submit" class="btn btn-dark btn-sm w-100">Record Payment</button>
-            </div>
-        </form>
-    </div>
-</div>
 
-{% for s in summary %}
-<div class="card stat-card mb-3">
-    <div class="card-body p-3">
-        <div class="d-flex justify-content-between align-items-center">
+            <div class="bg-light rounded p-2 mt-2">
+                <div class="row text-center g-0">
+                    <div class="col border-end">
+                        <small class="text-muted d-block" style="font-size: 10px;">TOTAL EARNED</small>
+                        <span class="fw-bold text-dark">₹{{ s.earned|int }}</span>
+                    </div>
+                    <div class="col border-end">
+                        <small class="text-muted d-block" style="font-size: 10px;">PAID</small>
+                        <span class="fw-bold text-success">₹{{ s.paid|int }}</span>
+                    </div>
+                    <div class="col">
+                        <small class="text-muted d-block" style="font-size: 10px;">DUE / BAKI</small>
+                        {% if s.balance > 0 %}
+                        <span class="fw-bold text-danger">₹{{ s.balance|int }}</span>
+                        {% else %}
+                        <span class="fw-bold text-success">Ok</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
             
-            <div>
-                <a href="{{ url_for('worker_profile', worker_id=s.id) }}" class="text-decoration-none text-dark">
-                    <h5 class="mb-0 fw-bold">{{ s.name }} ↗</h5>
-                </a>
-                <span class="badge bg-light text-secondary border mt-1">{{ s.project_name }}</span>
-            </div>
-
-            <span class="badge bg-secondary">Wage: ₹{{ s.wage }}</span>
-        </div>
-        <hr class="my-2">
-        <div class="row text-center">
-            <div class="col border-end">
-                <small class="text-muted">Total Kamai</small><br>
-                <span class="text-primary fw-bold">₹{{ s.earned }}</span>
-            </div>
-            <div class="col border-end">
-                <small class="text-muted">Paid</small><br>
-                <span class="text-success fw-bold">₹{{ s.paid }}</span>
-            </div>
-            <div class="col">
-                <small class="text-muted">Due</small><br>
-                {% if s.balance > 0 %}
-                <span class="text-danger fw-bold">₹{{ s.balance }}</span>
-                {% else %}
-                <span class="text-success fw-bold">All Paid</span>
-                {% endif %}
-            </div>
         </div>
     </div>
 </div>
 {% endfor %}
+</div>
+
+<button class="btn btn-dark rounded-circle shadow-lg d-flex align-items-center justify-content-center" 
+        onclick="openPaymentModal('')"
+        style="position: fixed; bottom: 80px; right: 20px; width: 60px; height: 60px; z-index: 1000; font-size: 30px;">
+    +
+</button>
+
+<div class="modal fade" id="paymentModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <form action="{{ url_for('payments') }}" method="POST">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title">💸 Record Payment</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+              <label class="small text-muted mb-1">Select Worker</label>
+              <select name="worker_id" id="workerSelect" class="form-select mb-3" required>
+                  <option value="">-- Choose Worker --</option>
+                  {% for s in summary %}
+                  <option value="{{ s.id }}">{{ s.name }} (Due: ₹{{ s.balance|int }})</option>
+                  {% endfor %}
+              </select>
+              
+              <label class="small text-muted mb-1">Payment Amount (₹)</label>
+              <input type="number" name="amount" class="form-control mb-3" placeholder="e.g. 500" required>
+              
+              <label class="small text-muted mb-1">Date</label>
+              <input type="date" name="date" value="{{ today }}" class="form-control mb-3" required>
+            </div>
+            <div class="modal-footer">
+                <button type="submit" class="btn btn-success w-100">Save Payment</button>
+            </div>
+        </form>
+      </div>
+    </div>
+</div>
+
+<script>
+    function openPaymentModal(workerId) {
+        // Dropdown me worker select karo
+        const select = document.getElementById('workerSelect');
+        if (workerId) {
+            select.value = workerId;
+        } else {
+            select.value = ""; // Reset if clicking floating button
+        }
+        
+        // Modal Show karo
+        var myModal = new bootstrap.Modal(document.getElementById('paymentModal'));
+        myModal.show();
+    }
+</script>
 
 {% endblock %}

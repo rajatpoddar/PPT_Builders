@@ -139,14 +139,12 @@ def dashboard():
     
     projects = conn.execute("SELECT * FROM projects").fetchall()
     
-    # --- SPEED OPTIMIZATION START (Ek baar mein data lana) ---
-    # Expenses pre-fetch
+    # Expenses Sum
     expenses_map = {}
     exp_rows = conn.execute("SELECT project_id, SUM(amount) FROM expenses GROUP BY project_id").fetchall()
-    for row in exp_rows:
-        expenses_map[row['project_id']] = row[1] or 0
+    for row in exp_rows: expenses_map[row['project_id']] = row[1] or 0
         
-    # Workers count pre-fetch
+    # Workers Count
     workers_map = {} 
     w_rows = conn.execute("SELECT project_id, role, COUNT(*) FROM workers GROUP BY project_id, role").fetchall()
     for row in w_rows:
@@ -155,18 +153,28 @@ def dashboard():
         if pid not in workers_map: workers_map[pid] = {'Mistri': 0, 'Labour': 0}
         if role in workers_map[pid]: workers_map[pid][role] = row[2]
 
+    # --- NEW: Payments Sum (Project wise) ---
+    payments_map = {}
+    pay_rows = conn.execute('''SELECT w.project_id, SUM(p.amount) FROM payments p 
+                               JOIN workers w ON p.worker_id = w.id 
+                               GROUP BY w.project_id''').fetchall()
+    for row in pay_rows: payments_map[row['project_id']] = row[1] or 0
+
     project_stats = []
     for p in projects:
         exp = expenses_map.get(p['id'], 0)
+        pay = payments_map.get(p['id'], 0) # Payment amount
         counts = workers_map.get(p['id'], {'Mistri': 0, 'Labour': 0})
+        
         project_stats.append({
             'id': p['id'], 
             'name': p['name'], 
             'total_expense': exp, 
+            'total_payment': pay,   # New Data
+            'grand_total': exp + pay, # New Total
             'm_count': counts['Mistri'], 
             'l_count': counts['Labour']
         })
-    # --- SPEED OPTIMIZATION END ---
     
     conn.close()
     return render_template('dashboard.html', t_mistri=t_mistri, t_labour=t_labour, p_stats=project_stats, idle_workers=idle_workers)
@@ -235,10 +243,62 @@ def delete_expense(expense_id):
 @login_required
 def project_expenses(project_id):
     conn = get_db_connection()
+    projects = conn.execute("SELECT * FROM projects").fetchall()
     project = conn.execute("SELECT * FROM projects WHERE id=?", (project_id,)).fetchone()
     expenses = conn.execute("SELECT * FROM expenses WHERE project_id=? ORDER BY date_time DESC", (project_id,)).fetchall()
     conn.close()
-    return render_template('expense_log.html', expenses=expenses, project_name=project['name'])
+    return render_template('expense_log.html', expenses=expenses, project_name=project['name'], projects=projects, current_pid=project_id)
+
+@app.route('/print_expenses/<int:project_id>')
+@login_required
+def print_expenses(project_id):
+    conn = get_db_connection()
+    
+    # Queries Logic
+    if project_id == 0:
+        project_name = "All Projects"
+        # Expenses
+        expenses = conn.execute('''SELECT e.*, p.name as project_name FROM expenses e 
+                                   LEFT JOIN projects p ON e.project_id = p.id 
+                                   ORDER BY e.date_time DESC''').fetchall()
+        # Payments (Join with workers & projects)
+        payments = conn.execute('''SELECT p.*, w.name, w.role, proj.name as project_name 
+                                   FROM payments p 
+                                   JOIN workers w ON p.worker_id = w.id 
+                                   LEFT JOIN projects proj ON w.project_id = proj.id 
+                                   ORDER BY p.date DESC''').fetchall()
+    else:
+        project = conn.execute("SELECT * FROM projects WHERE id=?", (project_id,)).fetchone()
+        project_name = project['name']
+        # Expenses
+        expenses = conn.execute("SELECT * FROM expenses WHERE project_id=? ORDER BY date_time DESC", (project_id,)).fetchall()
+        # Payments (Workers of this project)
+        payments = conn.execute('''SELECT p.*, w.name, w.role 
+                                   FROM payments p 
+                                   JOIN workers w ON p.worker_id = w.id 
+                                   WHERE w.project_id=? 
+                                   ORDER BY p.date DESC''', (project_id,)).fetchall()
+    
+    total_exp = sum(e['amount'] for e in expenses)
+    total_pay = sum(p['amount'] for p in payments)
+    
+    conn.close()
+    return render_template('print_expenses.html', 
+                           expenses=expenses, payments=payments, 
+                           total_exp=total_exp, total_pay=total_pay, 
+                           project_name=project_name)
+
+@app.route('/project_workers/<int:project_id>')
+@login_required
+def project_workers(project_id):
+    conn = get_db_connection()
+    project = conn.execute("SELECT * FROM projects WHERE id=?", (project_id,)).fetchone()
+    # Fix: Join lagaya taki project_name mile aur "Baitha Hua" na dikhe
+    workers = conn.execute('''SELECT w.*, p.name as project_name FROM workers w 
+                              LEFT JOIN projects p ON w.project_id = p.id 
+                              WHERE w.project_id=?''', (project_id,)).fetchall()
+    conn.close()
+    return render_template('worker_list.html', workers=workers, title=f"Staff at {project['name']}")
 
 @app.route('/add_project', methods=['POST'])
 @login_required
@@ -253,6 +313,7 @@ def add_project():
 @login_required
 def add_worker():
     conn = get_db_connection()
+    # POST logic same rahega (Save karne wala)
     if request.method == 'POST':
         file = request.files['photo']
         filename = file.filename if file else ''
@@ -265,10 +326,15 @@ def add_worker():
                       request.form['id_number'], request.form['daily_wage'], filename, p_id))
         conn.commit()
         conn.close()
-        return redirect(url_for('dashboard'))
+        return redirect(url_for('add_worker')) # Redirect back to same list page
+
+    # GET: Ab hum workers ki list bhi bhejenge
+    workers = conn.execute('''SELECT w.*, p.name as project_name FROM workers w 
+                              LEFT JOIN projects p ON w.project_id = p.id 
+                              ORDER BY w.id DESC''').fetchall()
     projects = conn.execute("SELECT * FROM projects").fetchall()
     conn.close()
-    return render_template('add_worker.html', projects=projects)
+    return render_template('add_worker.html', workers=workers, projects=projects)
 
 @app.route('/add_expense', methods=['POST'])
 @login_required
@@ -286,11 +352,13 @@ def add_expense():
 @login_required
 def expense_log():
     conn = get_db_connection()
+    # Projects bhi bhejein taki modal me dropdown dikh sake
+    projects = conn.execute("SELECT * FROM projects").fetchall()
     expenses = conn.execute('''SELECT e.*, p.name as project_name FROM expenses e 
                                LEFT JOIN projects p ON e.project_id = p.id 
                                ORDER BY e.date_time DESC''').fetchall()
     conn.close()
-    return render_template('expense_log.html', expenses=expenses, project_name="All Projects")
+    return render_template('expense_log.html', expenses=expenses, project_name="All Projects", projects=projects, current_pid=0)
 
 @app.route('/attendance', methods=['GET', 'POST'])
 @login_required

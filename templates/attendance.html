@@ -1,37 +1,71 @@
 {% extends 'base.html' %}
 {% block content %}
 
-<h4 class="mb-3">📝 Mark Attendance (हाज़िरी)</h4>
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0">📝 Mark Attendance</h5>
+    <a href="{{ url_for('attendance_report') }}" class="btn btn-sm btn-secondary">Cancel</a>
+</div>
 
 <form action="{{ url_for('attendance') }}" method="POST">
-    <div class="mb-3">
-        <label>Select Date:</label>
-        <input type="date" name="attendance_date" value="{{ today_date }}" class="form-control">
+    
+    <div class="card shadow-sm border-0 mb-3 bg-light">
+        <div class="card-body p-2 d-flex align-items-center justify-content-between">
+            <span class="fw-bold text-muted small">DATE:</span>
+            <input type="date" name="attendance_date" value="{{ today_date }}" class="form-control form-control-sm w-auto border-0 bg-white fw-bold shadow-sm">
+        </div>
     </div>
 
-    <div class="card stat-card mb-4">
-        <ul class="list-group list-group-flush">
-            {% for w in workers %}
-            <li class="list-group-item">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <strong>{{ w.name }}</strong>
-                    <span class="badge bg-secondary">{{ w.role }}</span>
+    <div class="pb-5">
+        {% for w in workers %}
+        <div class="card stat-card mb-3 border-0 shadow-sm">
+            <div class="card-body p-3">
+                <div class="d-flex align-items-center mb-3">
+                    {% if w.photo_path %}
+                    <img src="{{ url_for('uploaded_file', filename=w.photo_path) }}" class="rounded-circle me-3 border" style="width: 45px; height: 45px; object-fit: cover;">
+                    {% else %}
+                    <div class="rounded-circle bg-light text-secondary d-flex align-items-center justify-content-center me-3 border" style="width: 45px; height: 45px; font-size: 20px;">👤</div>
+                    {% endif %}
+                    
+                    <div>
+                        <h6 class="mb-0 fw-bold">{{ w.name }}</h6>
+                        <small class="text-muted">{{ w.role }}</small>
+                    </div>
                 </div>
+
                 <div class="btn-group w-100" role="group">
+                    
                     <input type="radio" class="btn-check" name="status_{{ w.id }}" value="Present" id="p_{{ w.id }}" checked>
-                    <label class="btn btn-outline-success" for="p_{{ w.id }}">P</label>
+                    <label class="btn btn-outline-success py-2" for="p_{{ w.id }}">
+                        <span class="d-block h5 mb-0">Present</span>
+                        <small>Full Day</small>
+                    </label>
 
                     <input type="radio" class="btn-check" name="status_{{ w.id }}" value="Half Day" id="h_{{ w.id }}">
-                    <label class="btn btn-outline-warning" for="h_{{ w.id }}">Half</label>
+                    <label class="btn btn-outline-warning py-2 text-dark" for="h_{{ w.id }}">
+                        <span class="d-block h5 mb-0">Half</span>
+                        <small>Day</small>
+                    </label>
 
                     <input type="radio" class="btn-check" name="status_{{ w.id }}" value="Absent" id="a_{{ w.id }}">
-                    <label class="btn btn-outline-danger" for="a_{{ w.id }}">A</label>
+                    <label class="btn btn-outline-danger py-2" for="a_{{ w.id }}">
+                        <span class="d-block h5 mb-0">Absent</span>
+                        <small>Chutti</small>
+                    </label>
+
                 </div>
-            </li>
-            {% endfor %}
-        </ul>
+            </div>
+        </div>
+        {% endfor %}
     </div>
 
-    <button type="submit" class="btn btn-primary w-100 p-2 mb-5">Save Attendance</button>
+    <div class="fixed-bottom p-3 bg-white border-top shadow-lg" style="bottom: 70px; z-index: 900;">
+        <button type="submit" class="btn btn-primary w-100 py-2 fw-bold rounded-pill shadow">
+            ✅ Save All Attendance
+        </button>
+    </div>
+
 </form>
+
+<div style="height: 100px;"></div>
+
 {% endblock %}

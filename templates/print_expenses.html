@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Report - {{ project_name }}</title>
+    <style>
+        body { font-family: 'Helvetica', sans-serif; padding: 20px; color: #333; max-width: 800px; margin: auto; line-height: 1.5; }
+        .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 10px; }
+        .header h1 { margin: 0; font-size: 22px; text-transform: uppercase; }
+        .section-title { background: #f4f4f4; padding: 5px 10px; font-weight: bold; margin-top: 15px; border-left: 5px solid #0d6efd; font-size: 14px; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 10px; font-size: 12px; }
+        th, td { padding: 6px; border-bottom: 1px solid #ddd; text-align: left; }
+        th { background-color: #f8f9fa; font-weight: bold; }
+        .amount { text-align: right; }
+        .subtotal { font-weight: bold; text-align: right; background: #fffbe6; }
+        .grand-total { margin-top: 20px; text-align: right; font-size: 18px; font-weight: bold; border-top: 2px solid #000; padding-top: 10px; }
+        
+        /* Promotion Footer */
+        .promo-footer { margin-top: 40px; text-align: center; font-size: 10px; color: #777; border-top: 1px dotted #ccc; padding-top: 10px; }
+        .promo-footer strong { color: #0d6efd; }
+        
+        /* Mobile/PWA Friendly Controls */
+        .no-print { 
+            display: flex; gap: 10px; justify-content: flex-end; margin-bottom: 20px; 
+            background: #eee; padding: 10px; border-radius: 8px;
+        }
+        .btn { padding: 8px 15px; border: none; cursor: pointer; border-radius: 5px; font-weight: bold; text-decoration: none; font-size: 14px; }
+        .btn-print { background: #333; color: white; }
+        .btn-back { background: #0d6efd; color: white; }
+
+        @media print {
+            .no-print { display: none; }
+            body { padding: 0; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="no-print">
+        <a href="{{ url_for('dashboard') }}" class="btn btn-back">⬅ Back to App</a>
+        <button onclick="window.print()" class="btn btn-print">🖨️ Print / PDF</button>
+    </div>
+
+    <div class="header">
+        <h1>🏗️ Project Cost Report</h1>
+        <p>Site: <strong>{{ project_name }}</strong></p>
+        <p>Generated: <script>document.write(new Date().toLocaleDateString())</script></p>
+    </div>
+
+    <div class="section-title">📦 Material Expenses</div>
+    <table>
+        <thead>
+            <tr>
+                <th width="20%">Date</th>
+                <th>Item</th>
+                <th class="amount" width="20%">Amount</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for exp in expenses %}
+            <tr>
+                <td>{{ exp.date_time[:10] }}</td>
+                <td>{{ exp.item }} 
+                    {% if project_name == 'All Projects' %}<small style="color:#777">[{{ exp.project_name }}]</small>{% endif %}
+                </td>
+                <td class="amount">₹{{ exp.amount }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="3" style="text-align:center; color:#999;">No expenses.</td></tr>
+            {% endfor %}
+            <tr class="subtotal">
+                <td colspan="2">Total Material:</td>
+                <td class="amount">₹{{ total_exp }}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="section-title" style="border-color: #198754;">👷 Labour Payments</div>
+    <table>
+        <thead>
+            <tr>
+                <th width="20%">Date</th>
+                <th>Worker</th>
+                <th class="amount" width="20%">Amount</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for pay in payments %}
+            <tr>
+                <td>{{ pay.date }}</td>
+                <td>{{ pay.name }} <small style="color:#777">({{ pay.role }})</small></td>
+                <td class="amount">₹{{ pay.amount }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="3" style="text-align:center; color:#999;">No payments.</td></tr>
+            {% endfor %}
+            <tr class="subtotal" style="background: #e8f5e9;">
+                <td colspan="2">Total Paid:</td>
+                <td class="amount">₹{{ total_pay }}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="grand-total">
+        GRAND TOTAL: ₹{{ total_exp + total_pay }}
+    </div>
+
+    <div class="promo-footer">
+        Generated digitally by <strong>PPT Builders App</strong><br>
+        Manage your construction sites easily. ❤️ <strong>Poddar Solutions</strong>
+    </div>
+
+</body>
+</html>

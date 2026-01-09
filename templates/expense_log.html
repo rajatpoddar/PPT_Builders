@@ -3,13 +3,18 @@
 
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
-        <h5 class="mb-0">💸 Expenses Log</h5>
-        <small class="text-muted">For: {{ project_name if project_name else 'All Projects' }}</small>
+        <h5 class="mb-0">💸 Expenses</h5>
+        <small class="text-muted">{{ project_name }}</small>
     </div>
-    <a href="{{ url_for('dashboard') }}" class="btn btn-sm btn-secondary">Back</a>
+    <div>
+        <a href="{{ url_for('print_expenses', project_id=current_pid) }}" target="_blank" class="btn btn-sm btn-dark me-1">
+            🖨️ Print
+        </a>
+        <a href="{{ url_for('dashboard') }}" class="btn btn-sm btn-secondary">Back</a>
+    </div>
 </div>
 
-<div class="card stat-card">
+<div class="d-none d-md-block card stat-card">
     <div class="card-body p-0">
         <div class="table-responsive">
             <table class="table table-striped mb-0 align-middle">
@@ -21,7 +26,8 @@
                         <th>Project</th>
                         {% endif %}
                         <th class="text-end">Amount</th>
-                        <th class="text-center">Action</th> </tr>
+                        <th class="text-center">Action</th> 
+                    </tr>
                 </thead>
                 <tbody>
                     {% for exp in expenses %}
@@ -32,7 +38,6 @@
                         <td><span class="badge bg-info text-dark">{{ exp.project_name }}</span></td>
                         {% endif %}
                         <td class="text-end text-danger fw-bold">₹{{ exp.amount }}</td>
-                        
                         <td class="text-center">
                             <a href="{{ url_for('edit_expense', expense_id=exp.id) }}" class="btn btn-sm btn-light border">✏️</a>
                         </td>
@@ -45,4 +50,68 @@
         </div>
     </div>
 </div>
+
+<div class="d-md-none">
+    {% for exp in expenses %}
+    <div class="card stat-card mb-2 border-0 shadow-sm">
+        <div class="card-body p-3">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <h6 class="mb-1 fw-bold text-dark">{{ exp.item }}</h6>
+                    <small class="text-muted d-block" style="font-size: 11px;">📅 {{ exp.date_time }}</small>
+                    {% if not project_name or project_name == 'All Projects' %}
+                    <span class="badge bg-light text-dark border mt-1" style="font-size: 10px;">{{ exp.project_name }}</span>
+                    {% endif %}
+                </div>
+                <div class="text-end">
+                    <h5 class="text-danger mb-1">₹{{ exp.amount }}</h5>
+                    <a href="{{ url_for('edit_expense', expense_id=exp.id) }}" class="text-secondary small text-decoration-none">Edit ✏️</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="text-center text-muted mt-5">No expenses yet.</div>
+    {% endfor %}
+</div>
+
+<button class="btn btn-primary rounded-circle shadow-lg d-flex align-items-center justify-content-center" 
+        data-bs-toggle="modal" data-bs-target="#quickExpenseModal"
+        style="position: fixed; bottom: 80px; right: 20px; width: 60px; height: 60px; z-index: 1000; font-size: 30px;">
+    +
+</button>
+
+<div class="modal fade" id="quickExpenseModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <form action="{{ url_for('add_expense') }}" method="POST">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">⚡ Quick Add Expense</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+              <label class="small text-muted mb-1">Select Project</label>
+              <select name="project_id" class="form-select mb-3" required>
+                  {% for p in projects %}
+                  <option value="{{ p.id }}" {% if p.id == current_pid %}selected{% endif %}>{{ p.name }}</option>
+                  {% endfor %}
+              </select>
+              
+              <label class="small text-muted mb-1">Item Name</label>
+              <input type="text" name="item" class="form-control mb-3" placeholder="e.g. Cement, Chai, Petrol" required>
+              
+              <label class="small text-muted mb-1">Amount (₹)</label>
+              <input type="number" name="amount" class="form-control mb-3" placeholder="0.00" required>
+              
+              <label class="small text-muted mb-1">Date (Optional)</label>
+              <input type="datetime-local" name="date_time" class="form-control">
+            </div>
+            <div class="modal-footer">
+                <button type="submit" class="btn btn-danger w-100">Save Expense</button>
+            </div>
+        </form>
+      </div>
+    </div>
+</div>
+
 {% endblock %}

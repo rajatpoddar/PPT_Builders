@@ -1,145 +1,174 @@
 {% extends 'base.html' %}
 {% block content %}
-<div class="card stat-card">
-    <div class="card-header bg-white"><h5>Add New Worker</h5></div>
-    <div class="card-body">
-        <form id="workerForm" action="{{ url_for('add_worker') }}" method="POST" enctype="multipart/form-data">
-            
-            <div class="mb-3">
-                <label class="form-label text-muted small">Full Name</label>
-                <input type="text" name="name" class="form-control" required>
-            </div>
 
-            <div class="mb-3">
-                <label class="form-label text-muted small">Mobile Number (Optional)</label>
-                <input type="tel" name="phone" class="form-control">
-            </div>
-            
-            <div class="mb-3">
-                <label class="text-muted small">Daily Wage (दिहाड़ी ₹)</label>
-                <input type="number" name="daily_wage" class="form-control" placeholder="e.g. 500" required>
-            </div>
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0">👷 Worker Directory</h5>
+    <span class="badge bg-primary">{{ workers|length }} Workers</span>
+</div>
 
-            <div class="row g-2 mb-3">
-                <div class="col-6">
-                    <label class="form-label text-muted small">Role</label>
-                    <select name="role" class="form-select">
-                        <option value="Labour">Labour</option>
-                        <option value="Mistri">Mistri</option>
-                    </select>
-                </div>
-                <div class="col-6">
-                    <label class="form-label text-muted small">Assign Site</label>
-                    <select name="project_id" class="form-select">
-                        <option value="0" class="text-danger">Idle / Unassigned</option>
-                        {% for project in projects %}
-                        <option value="{{ project['id'] }}">{{ project['name'] }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-            </div>
+<div class="row pb-5">
+    {% for w in workers %}
+    <div class="col-md-6 mb-2">
+        <a href="{{ url_for('worker_profile', worker_id=w.id) }}" class="text-decoration-none">
+            <div class="card stat-card border-0 shadow-sm">
+                <div class="card-body p-3 d-flex align-items-center">
+                    {% if w.photo_path %}
+                    <img src="{{ url_for('uploaded_file', filename=w.photo_path) }}" class="rounded-circle me-3 border"
+                        style="width: 50px; height: 50px; object-fit: cover;">
+                    {% else %}
+                    <div class="rounded-circle bg-light text-secondary d-flex align-items-center justify-content-center me-3 border"
+                        style="width: 50px; height: 50px; font-size: 20px;">👤</div>
+                    {% endif %}
 
-            <div class="mb-3">
-                <label class="form-label text-muted small">ID Number</label>
-                <input type="text" name="id_number" class="form-control">
-            </div>
+                    <div class="flex-grow-1">
+                        <h6 class="mb-0 text-dark fw-bold">{{ w.name }}</h6>
 
-            <div class="mb-4">
-                <label class="form-label text-muted small">Upload Photo/ID</label>
-                <input type="file" name="photo" id="photoInput" class="form-control" accept="image/*">
-                <div id="compressionMsg" class="text-primary small mt-2 fw-bold" style="display:none;">
-                    ⏳ Compressing photo...
+                        <div class="text-warning" style="font-size: 10px;">
+                            {% if w.rating %}{% for i in range(w.rating) %}⭐{% endfor %}{% endif %}
+                        </div>
+
+                        <small class="text-muted">{{ w.role }}</small>
+                        {% if w.project_name %}
+                        <span class="badge bg-light text-success border ms-1" style="font-size: 10px;">{{ w.project_name
+                            }}</span>
+                        {% endif %}
+                    </div>
+
+                    <div class="text-end">
+                        <span class="text-muted small">View ></span>
+                    </div>
                 </div>
             </div>
+        </a>
+    </div>
+    {% else %}
+    <div class="text-center text-muted mt-5">
+        <p>No workers found. Add one using the + button.</p>
+    </div>
+    {% endfor %}
+</div>
 
-            <button type="submit" id="submitBtn" class="btn btn-primary w-100 py-2">Save Worker</button>
-        </form>
+<button class="btn btn-primary rounded-circle shadow-lg d-flex align-items-center justify-content-center"
+    data-bs-toggle="modal" data-bs-target="#addWorkerModal"
+    style="position: fixed; bottom: 80px; right: 20px; width: 60px; height: 60px; z-index: 1000; font-size: 30px;">
+    +
+</button>
+
+<div class="modal fade" id="addWorkerModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">👷 Add New Worker</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="workerForm" action="{{ url_for('add_worker') }}" method="POST" enctype="multipart/form-data">
+
+                    <div class="mb-3">
+                        <label class="form-label text-muted small">Full Name</label>
+                        <input type="text" name="name" class="form-control" required>
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label text-muted small">Role</label>
+                            <select name="role" class="form-select">
+                                <option value="Labour">Labour</option>
+                                <option value="Mistri">Mistri</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label text-muted small">Assign Site</label>
+                            <select name="project_id" class="form-select">
+                                <option value="0" class="text-danger">Idle / Unassigned</option>
+                                {% for project in projects %}
+                                <option value="{{ project['id'] }}">{{ project['name'] }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="text-muted small">Daily Wage (₹)</label>
+                            <input type="number" name="daily_wage" class="form-control" placeholder="500" required>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label text-muted small">Mobile</label>
+                            <input type="tel" name="phone" class="form-control" placeholder="Optional">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label text-muted small">ID Number (Optional)</label>
+                        <input type="text" name="id_number" class="form-control">
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label text-muted small">Photo</label>
+                        <input type="file" name="photo" id="photoInput" class="form-control" accept="image/*">
+                        <div id="compressionMsg" class="small mt-1 fw-bold" style="display:none;"></div>
+                    </div>
+
+                    <button type="submit" id="submitBtn" class="btn btn-primary w-100">Save Worker</button>
+                </form>
+            </div>
+        </div>
     </div>
 </div>
 
 <script>
-// 1. Submit button par Loading animation
-document.getElementById('workerForm').addEventListener('submit', function(e) {
-    const btn = document.getElementById('submitBtn');
-    // Button disable kardo taki do baar click na ho
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Saving...';
-});
-
-// 2. Image Compression Logic
-document.getElementById('photoInput').addEventListener('change', async function(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    // Agar file 1MB se chhoti hai to compress mat karo
-    if (file.size < 1024 * 1024) return;
-
-    const msg = document.getElementById('compressionMsg');
-    msg.style.display = 'block';
-    msg.innerHTML = '⏳ Badi photo hai, compress kar raha hu... (Wait)';
-    msg.classList.remove('text-success', 'text-danger');
-    msg.classList.add('text-primary');
-
-    try {
-        const compressedFile = await compressImage(file);
-        
-        // Input field me compressed file daal do
-        const dataTransfer = new DataTransfer();
-        dataTransfer.items.add(compressedFile);
-        event.target.files = dataTransfer.files;
-
-        msg.innerHTML = '✅ Photo Compress Ho Gayi! (Ab Upload Fast Hoga)';
-        msg.classList.remove('text-primary');
-        msg.classList.add('text-success');
-    } catch (error) {
-        console.error("Compression failed", error);
-        msg.innerHTML = '⚠️ Compression failed, original photo hi jayegi.';
-        msg.classList.add('text-danger');
-    }
-});
-
-function compressImage(file) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = function(event) {
-            const img = new Image();
-            img.src = event.target.result;
-            img.onload = function() {
-                const canvas = document.createElement('canvas');
-                // Maximum width 1000px rakhenge (kaafi hai ID/Face ke liye)
-                const MAX_WIDTH = 1000;
-                let width = img.width;
-                let height = img.height;
-
-                if (width > MAX_WIDTH) {
-                    height *= MAX_WIDTH / width;
-                    width = MAX_WIDTH;
-                }
-
-                canvas.width = width;
-                canvas.height = height;
-
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0, width, height);
-
-                // JPEG format me 70% quality par convert karo
-                canvas.toBlob((blob) => {
-                    if (!blob) {
-                        reject();
-                        return;
-                    }
-                    const newFile = new File([blob], file.name, {
-                        type: 'image/jpeg',
-                        lastModified: Date.now(),
-                    });
-                    resolve(newFile);
-                }, 'image/jpeg', 0.7);
-            };
-            img.onerror = reject;
-        };
-        reader.onerror = reject;
+    document.getElementById('workerForm').addEventListener('submit', function (e) {
+        const btn = document.getElementById('submitBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Saving...';
     });
-}
+
+    document.getElementById('photoInput').addEventListener('change', async function (event) {
+        const file = event.target.files[0];
+        if (!file || file.size < 1024 * 1024) return;
+
+        const msg = document.getElementById('compressionMsg');
+        msg.style.display = 'block';
+        msg.className = 'text-primary';
+        msg.innerHTML = '⏳ Compressing photo...';
+
+        try {
+            const compressedFile = await compressImage(file);
+            const dataTransfer = new DataTransfer();
+            dataTransfer.items.add(compressedFile);
+            event.target.files = dataTransfer.files;
+            msg.className = 'text-success';
+            msg.innerHTML = '✅ Compressed!';
+        } catch (error) {
+            msg.className = 'text-danger';
+            msg.innerHTML = '⚠️ Failed to compress.';
+        }
+    });
+
+    function compressImage(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = function (event) {
+                const img = new Image();
+                img.src = event.target.result;
+                img.onload = function () {
+                    const canvas = document.createElement('canvas');
+                    const MAX_WIDTH = 1000;
+                    let width = img.width;
+                    let height = img.height;
+                    if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
+                    canvas.width = width; canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    canvas.toBlob((blob) => resolve(new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() })), 'image/jpeg', 0.7);
+                };
+                img.onerror = reject;
+            };
+            reader.onerror = reject;
+        });
+    }
 </script>
+
 {% endblock %}
