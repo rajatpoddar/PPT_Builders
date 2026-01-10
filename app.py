@@ -505,8 +505,12 @@ def attendance():
                     conn.execute("INSERT INTO attendance (worker_id, date, status) VALUES (?, ?, ?)", (w['id'], date, status))
         conn.commit()
         return redirect(url_for('attendance_report'))
+
     today_date = datetime.now().strftime('%Y-%m-%d')
-    workers = conn.execute("SELECT * FROM workers").fetchall()
+    workers = conn.execute('''SELECT w.*, p.name as project_name 
+                              FROM workers w 
+                              LEFT JOIN projects p ON w.project_id = p.id 
+                              ORDER BY w.role, w.name''').fetchall()
     conn.close()
     return render_template('attendance.html', workers=workers, today_date=today_date)
 
@@ -589,7 +593,7 @@ def payments():
         t_paid += total_paid
         t_due += balance
         payment_summary.append({'id': w['id'], 'name': w['name'], 'role': w['role'], 'wage': w['daily_wage'], 
-                                'earned': total_earned, 'paid': total_paid, 'balance': balance, 'project_name': w['project_name']})
+                                'earned': total_earned, 'paid': total_paid, 'balance': balance, 'project_name': w['project_name'], 'rating': w['rating']})
     conn.close()
     return render_template('payments.html', summary=payment_summary, today=datetime.now().strftime('%Y-%m-%d'), t_paid=t_paid, t_due=t_due)
 

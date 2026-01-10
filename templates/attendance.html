@@ -28,7 +28,18 @@
                     
                     <div>
                         <h6 class="mb-0 fw-bold">{{ w.name }}</h6>
+                        
+                        <div class="text-warning" style="font-size: 10px; line-height: 1;">
+                            {% if w.rating %}{% for i in range(w.rating) %}⭐{% endfor %}{% endif %}
+                        </div>
+
                         <small class="text-muted">{{ w.role }}</small>
+                        
+                        {% if w.project_name %}
+                        <span class="badge bg-light text-success border ms-1" style="font-size: 9px;">{{ w.project_name }}</span>
+                        {% else %}
+                        <span class="badge bg-light text-danger border ms-1" style="font-size: 9px;">Idle</span>
+                        {% endif %}
                     </div>
                 </div>
 

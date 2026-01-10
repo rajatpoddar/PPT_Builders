@@ -27,7 +27,7 @@
                             {% if w.rating %}{% for i in range(w.rating) %}⭐{% endfor %}{% endif %}
                         </div>
 
-                        <small class="text-muted">{{ w.role }}</small>
+                        <small class="text-muted">{{ w.role }} | 📞 {{ w.phone or 'No Num' }}</small>
                         {% if w.project_name %}
                         <span class="badge bg-light text-success border ms-1" style="font-size: 10px;">{{ w.project_name
                             }}</span>
