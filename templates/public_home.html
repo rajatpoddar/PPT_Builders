@@ -4,38 +4,20 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>PPT Builders - Live Status</title>
-    
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
-    <link rel="apple-touch-icon" href="{{ url_for('static', filename='logo.png') }}">
-    
-    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
-
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body { background: #f4f6f9; font-family: 'Segoe UI', sans-serif; }
-        .hero { 
-            background: linear-gradient(135deg, #0d6efd, #0dcaf0); 
-            color: white; 
-            padding: 50px 20px 80px 20px; 
-            border-radius: 0 0 30px 30px; 
-            margin-bottom: -40px; 
-            text-align: center;
-        }
-        .stat-card { 
-            border-radius: 12px; 
-            border: none; 
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05); 
-            transition: transform 0.2s; 
-        }
-        .stat-card:hover { transform: translateY(-3px); }
+        .hero { background: linear-gradient(135deg, #0d6efd, #0dcaf0); color: white; padding: 40px 20px 70px 20px; border-radius: 0 0 30px 30px; margin-bottom: -40px; text-align: center; }
+        .stat-card { border-radius: 12px; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
     </style>
 </head>
 <body>
     
     <div class="hero">
-        <h1 class="fw-bold">🏗️ PPT Builders</h1>
-        <p class="mb-3 opacity-75">Live Site Status & Cost Report</p>
-        <a href="{{ url_for('login') }}" class="btn btn-light btn-sm fw-bold px-4 rounded-pill shadow-sm text-primary">Admin Login 🔐</a>
+        <h2 class="fw-bold">🏗️ PPT Builders</h2>
+        <p class="mb-3 opacity-75">Site Status Report</p>
+        <a href="{{ url_for('login') }}" class="btn btn-light btn-sm fw-bold px-4 rounded-pill shadow-sm text-primary">Admin Login</a>
     </div>
 
     <div class="container pb-5">
@@ -45,34 +27,60 @@
                 <div class="card stat-card">
                     <div class="card-body p-4">
                         
-                        <div class="d-flex justify-content-between align-items-center mb-1">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
                             <div>
                                 <h5 class="card-title mb-0 fw-bold text-dark">{{ p.name }}</h5>
                                 <small class="text-muted">📍 {{ p.location }}</small>
                             </div>
-                            {% set total_workers = p.mistri + p.labour %}
-                            {% if total_workers > 0 %}
-                                <span class="badge bg-light text-dark border">
-                                    👷 {{ p.mistri }} M | 🧱 {{ p.labour }} L
-                                </span>
+                            {% if (p.mistri + p.labour) > 0 %}
+                                <span class="badge bg-light text-dark border">👷 {{ p.mistri }} M | 🧱 {{ p.labour }} L</span>
                             {% else %}
-                                <span class="badge bg-light text-muted border" style="font-size: 10px;">Stopped</span>
+                                <span class="badge bg-light text-muted border">Stopped</span>
                             {% endif %}
                         </div>
+
+                        {% if p.progress_target > 0 %}
+                        <div class="mb-3 p-3 bg-light rounded border mt-3">
+                            <div class="d-flex justify-content-between small fw-bold mb-1">
+                                <span>🚧 {{ p.progress_done|int }} / {{ p.progress_target }} {{ p.progress_unit }}</span>
+                                <span class="text-primary">{{ p.progress_percent }}%</span>
+                            </div>
+                            <div class="progress mb-3" style="height: 8px;">
+                                <div class="progress-bar progress-bar-striped progress-bar-animated bg-success" style="width: {{ p.progress_percent }}%"></div>
+                            </div>
+                            
+                            <div class="row text-center" style="font-size: 11px;">
+                                <div class="col border-end">
+                                    <span class="text-muted d-block">EST. TIME</span>
+                                    {% if p.est_days == 'Done' %}<strong class="text-success">Done</strong>
+                                    {% elif p.est_days == 'N/A' %}<strong class="text-muted">-</strong>
+                                    {% else %}<strong class="text-primary">{{ p.est_days }} Days</strong>{% endif %}
+                                </div>
+                                <div class="col border-end">
+                                    <span class="text-muted d-block">MANDAYS</span>
+                                    <strong class="text-dark">{{ p.mandays|int }}</strong>
+                                </div>
+                                <div class="col">
+                                    <span class="text-muted d-block">LABOUR COST</span>
+                                    <strong class="text-dark">₹{{ p.total_worker_cost|int }}</strong>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
 
                         <hr class="my-3 opacity-25">
 
                         <div class="row text-center">
                             <div class="col border-end">
-                                <small class="text-muted text-uppercase" style="font-size: 10px; letter-spacing: 1px;">Material</small>
+                                <small class="text-muted text-uppercase" style="font-size: 10px;">Material</small>
                                 <strong class="text-danger d-block fs-5">₹{{ p.expense }}</strong>
                             </div>
                             <div class="col border-end">
-                                <small class="text-muted text-uppercase" style="font-size: 10px; letter-spacing: 1px;">Paid</small>
+                                <small class="text-muted text-uppercase" style="font-size: 10px;">Paid</small>
                                 <strong class="text-success d-block fs-5">₹{{ p.payment }}</strong>
                             </div>
                             <div class="col">
-                                <small class="text-muted text-uppercase" style="font-size: 10px; letter-spacing: 1px;">Total</small>
+                                <small class="text-muted text-uppercase" style="font-size: 10px;">Total Exp</small>
                                 <strong class="text-dark d-block fs-5">₹{{ p.grand_total }}</strong>
                             </div>
                         </div>
@@ -81,16 +89,9 @@
                 </div>
             </div>
             {% else %}
-            <div class="col-12 text-center text-muted mt-5">
-                <p>No active projects found.</p>
-            </div>
+            <div class="col-12 text-center text-muted mt-5"><p>No active projects found.</p></div>
             {% endfor %}
         </div>
-        
-        <div class="text-center mt-4 text-muted small opacity-50">
-            &copy; 2026 PPT Builders Manager
-        </div>
     </div>
-
 </body>
 </html>

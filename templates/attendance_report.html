@@ -1,10 +1,81 @@
 {% extends 'base.html' %}
 {% block content %}
+
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h4>📅 Weekly Report</h4>
-    </div>
+    <a href="{{ url_for('print_attendance') }}" class="btn btn-sm btn-dark shadow-sm">
+        🖨️ Print Report
+    </a>
+</div>
 
-<div class="d-none d-md-block card stat-card table-responsive">
+<h6 class="text-primary fw-bold text-uppercase small ls-1 mb-2">🏗️ Site Work & Material</h6>
+
+<div class="d-none d-md-block card stat-card table-responsive mb-4">
+    <table class="table table-bordered text-center table-sm align-middle mb-0" style="font-size: 0.9rem;">
+        <thead class="table-primary">
+            <tr>
+                <th class="text-start">Site Name</th>
+                {% for d in dates %}
+                <th>{{ d[-5:] }}</th> 
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in site_report %}
+            <tr>
+                <td class="text-start fw-bold">{{ row.name }}</td>
+                {% for day in row.days %}
+                <td>
+                    {% if day %}
+                        <div class="d-flex flex-column align-items-center" style="line-height: 1.2;">
+                            <span class="fw-bold text-dark">{{ day.work|int }} <span style="font-size:9px;" class="text-muted">{{ row.unit }}</span></span>
+                            {% if day.mat > 0 %}
+                            <span class="badge bg-danger text-white rounded-pill px-2" style="font-size:9px;">🚛 {{ day.mat|int }}</span>
+                            {% endif %}
+                        </div>
+                    {% else %}
+                        <span class="text-muted small">-</span>
+                    {% endif %}
+                </td>
+                {% endfor %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="d-md-none mb-4">
+    {% for row in site_report %}
+    <div class="card stat-card mb-2 border-0 shadow-sm bg-light">
+        <div class="card-body p-2">
+            <h6 class="fw-bold mb-2 text-primary">{{ row.name }}</h6>
+            <div class="d-flex overflow-auto gap-2 pb-1" style="scrollbar-width: none;">
+                {% for day in row.days %}
+                <div class="text-center bg-white rounded border p-1" style="min-width: 55px;">
+                    <small class="text-muted d-block mb-1 border-bottom" style="font-size: 9px;">
+                        {{ dates[loop.index0][-5:] }}
+                    </small>
+                    
+                    {% if day %}
+                        <div class="fw-bold text-dark" style="font-size: 13px;">{{ day.work|int }}</div>
+                        <div class="text-muted" style="font-size: 8px;">{{ row.unit }}</div>
+                        {% if day.mat > 0 %}
+                        <div class="badge bg-danger mt-1" style="font-size: 8px;">🚛 {{ day.mat|int }}</div>
+                        {% endif %}
+                    {% else %}
+                        <div class="text-muted py-2">-</div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<h6 class="text-secondary fw-bold text-uppercase small ls-1 mb-2">👤 Worker Attendance</h6>
+
+<div class="d-none d-md-block card stat-card table-responsive mb-5">
     <table class="table table-bordered text-center table-sm align-middle mb-0" style="font-size: 0.9rem;">
         <thead class="table-dark">
             <tr>
