@@ -47,6 +47,10 @@ def init_db():
         c.execute("ALTER TABLE projects ADD COLUMN unit TEXT DEFAULT 'Unit'")
     except: pass
 
+    try:
+        c.execute("ALTER TABLE projects ADD COLUMN rate REAL DEFAULT 0")
+    except: pass
+
     c.execute('''CREATE TABLE IF NOT EXISTS workers 
                  (id INTEGER PRIMARY KEY, name TEXT, phone TEXT, role TEXT, 
                   id_number TEXT, daily_wage REAL, photo_path TEXT, 
@@ -247,6 +251,12 @@ def dashboard():
         done = prog_data['done']
         target = p['target'] or 0
         percent = int((done / target) * 100) if target > 0 else 0
+        rate = p['rate'] or 0
+
+        # INCOME CALCULATION
+        estimated_income = done * rate  # Kaam * Bhav
+        
+        percent = int((done / target) * 100) if target > 0 else 0
         
         est_days = "N/A"
         if target > 0 and done > 0 and prog_data['days'] > 0:
@@ -261,7 +271,9 @@ def dashboard():
             'mandays': ws['mandays'],
             'total_worker_cost': ws['cost'],
             'progress_done': done, 'progress_target': target, 'progress_unit': p['unit'],
-            'progress_percent': percent, 'material_used': prog_data['mat'], 'est_days': est_days
+            # 👇 Yahan last me comma lagaya hai
+            'progress_percent': percent, 'material_used': prog_data['mat'], 'est_days': est_days, 
+            'rate': rate, 'income': estimated_income
         })
     
     conn.close()
@@ -405,9 +417,9 @@ def project_workers(project_id):
 @login_required
 def add_project():
     conn = get_db_connection()
-    # Updated to save Target and Unit
-    conn.execute("INSERT INTO projects (name, location, target, unit) VALUES (?, ?, ?, ?)", 
-                 (request.form['name'], request.form['location'], request.form.get('target', 0), request.form.get('unit', 'Unit')))
+    conn.execute("INSERT INTO projects (name, location, target, unit, rate) VALUES (?, ?, ?, ?, ?)", 
+                 (request.form['name'], request.form['location'], 
+                  request.form.get('target', 0), request.form.get('unit', 'Unit'), request.form.get('rate', 0)))
     conn.commit()
     conn.close()
     return redirect(url_for('dashboard'))
@@ -417,21 +429,19 @@ def add_project():
 def edit_project(project_id):
     conn = get_db_connection()
     
-    # Values get karte waqt safety (agar user khali chhod de)
     name = request.form['name']
     location = request.form['location']
-    target = request.form.get('target') # .get use kiya taki crash na ho
+    target = request.form.get('target')
     unit = request.form.get('unit')
+    rate = request.form.get('rate') # <--- NEW
     
-    # Agar target khali hai to 0 mano
-    if not target or target.strip() == '':
-        target = 0
+    if not target or target.strip() == '': target = 0
+    if not rate or rate.strip() == '': rate = 0 # <--- NEW
     
-    if not unit:
-        unit = 'Unit'
+    if not unit: unit = 'Unit'
 
-    conn.execute('UPDATE projects SET name=?, location=?, target=?, unit=? WHERE id=?',
-                 (name, location, target, unit, project_id))
+    conn.execute('UPDATE projects SET name=?, location=?, target=?, unit=?, rate=? WHERE id=?',
+                 (name, location, target, unit, rate, project_id))
     conn.commit()
     conn.close()
     flash('✅ Project Updated Successfully!')

@@ -74,10 +74,27 @@
                     <strong class="text-dark">₹{{ p.total_worker_cost|int }}</strong>
                 </div>
             </div>
+            
             <div class="text-center mt-2">
                 <small class="text-danger fw-bold" style="font-size: 10px;">🚚 Maal: {{ p.material_used|int }} Gaadi</small>
             </div>
-        </div>
+
+            <div class="row text-center mt-2 pt-2 border-top bg-white rounded pb-2 mx-1 shadow-sm">
+                <div class="col border-end">
+                    <span class="text-muted d-block text-uppercase" style="font-size:9px;">Work Value (Income)</span>
+                    <strong class="text-primary fs-5">₹{{ p.income|int }}</strong>
+                </div>
+                <div class="col">
+                    <span class="text-muted d-block text-uppercase" style="font-size:9px;">Net Profit</span>
+                    {% set profit = p.income - p.grand_total %}
+                    {% if profit >= 0 %}
+                        <strong class="text-success fs-5">₹{{ profit|int }}</strong>
+                    {% else %}
+                        <strong class="text-danger fs-5">-₹{{ profit|abs|int }}</strong>
+                    {% endif %}
+                </div>
+            </div>
+            </div>
         {% endif %}
 
         <hr class="my-2">
@@ -121,15 +138,20 @@
                     <input type="text" name="location" value="{{ p.location }}" class="form-control mb-3">
 
                     <div class="row g-2">
-                        <div class="col-6">
+                        <div class="col-4">
                             <label class="small text-muted mb-1">Target</label>
                             <input type="number" step="any" name="target" value="{{ p.progress_target }}"
-                                class="form-control" placeholder="e.g. 500">
+                                class="form-control" placeholder="Qty">
                         </div>
-                        <div class="col-6">
+                        <div class="col-4">
                             <label class="small text-muted mb-1">Unit</label>
                             <input type="text" name="unit" value="{{ p.progress_unit }}" class="form-control"
                                 placeholder="Unit">
+                        </div>
+                        <div class="col-4">
+                            <label class="small text-muted mb-1">Rate (₹)</label>
+                            <input type="number" step="any" name="rate" value="{{ p.rate }}" class="form-control"
+                                placeholder="Rate">
                         </div>
                     </div>
                 </div>
@@ -198,12 +220,16 @@
                     <input type="text" name="name" class="form-control mb-2"
                         placeholder="Site Name (e.g. Main Road PCC)" required>
                     <input type="text" name="location" class="form-control mb-2" placeholder="Location">
+                    
                     <div class="row g-2">
-                        <div class="col-6">
-                            <input type="number" name="target" class="form-control" placeholder="Target (e.g. 500)">
+                        <div class="col-4">
+                            <input type="number" name="target" class="form-control" placeholder="Target">
                         </div>
-                        <div class="col-6">
-                            <input type="text" name="unit" class="form-control" placeholder="Unit (e.g. Meters)">
+                        <div class="col-4">
+                            <input type="text" name="unit" class="form-control" placeholder="Unit">
+                        </div>
+                        <div class="col-4">
+                            <input type="number" step="any" name="rate" class="form-control" placeholder="Rate (₹)">
                         </div>
                     </div>
                 </div>
