@@ -510,7 +510,9 @@ def attendance():
     workers = conn.execute('''SELECT w.*, p.name as project_name 
                               FROM workers w 
                               LEFT JOIN projects p ON w.project_id = p.id 
+                              WHERE w.project_id IS NOT NULL AND w.project_id > 0 
                               ORDER BY w.role, w.name''').fetchall()
+                              
     conn.close()
     return render_template('attendance.html', workers=workers, today_date=today_date)
 

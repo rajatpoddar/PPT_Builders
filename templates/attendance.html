@@ -17,7 +17,10 @@
 
     <div class="pb-5">
         {% for w in workers %}
-        <div class="card stat-card mb-3 border-0 shadow-sm">
+        
+        <div class="card stat-card mb-3 border-0 shadow-sm"
+             style="{% if w.role == 'Mistri' %}background-color: #e7f3ff; border-left: 5px solid #0d6efd;{% else %}background-color: #fff8e1; border-left: 5px solid #ffc107;{% endif %}">
+            
             <div class="card-body p-3">
                 <div class="d-flex align-items-center mb-3">
                     {% if w.photo_path %}

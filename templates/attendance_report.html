@@ -15,9 +15,7 @@
         <thead class="table-primary">
             <tr>
                 <th class="text-start">Site Name</th>
-                {% for d in dates %}
-                <th>{{ d[-5:] }}</th> 
-                {% endfor %}
+                {% for d in dates %}<th>{{ d[-5:] }}</th>{% endfor %}
             </tr>
         </thead>
         <tbody>
@@ -29,13 +27,9 @@
                     {% if day %}
                         <div class="d-flex flex-column align-items-center" style="line-height: 1.2;">
                             <span class="fw-bold text-dark">{{ day.work|int }} <span style="font-size:9px;" class="text-muted">{{ row.unit }}</span></span>
-                            {% if day.mat > 0 %}
-                            <span class="badge bg-danger text-white rounded-pill px-2" style="font-size:9px;">🚛 {{ day.mat|int }}</span>
-                            {% endif %}
+                            {% if day.mat > 0 %}<span class="badge bg-danger text-white rounded-pill px-2" style="font-size:9px;">🚛 {{ day.mat|int }}</span>{% endif %}
                         </div>
-                    {% else %}
-                        <span class="text-muted small">-</span>
-                    {% endif %}
+                    {% else %}<span class="text-muted small">-</span>{% endif %}
                 </td>
                 {% endfor %}
             </tr>
@@ -52,19 +46,12 @@
             <div class="d-flex overflow-auto gap-2 pb-1" style="scrollbar-width: none;">
                 {% for day in row.days %}
                 <div class="text-center bg-white rounded border p-1" style="min-width: 55px;">
-                    <small class="text-muted d-block mb-1 border-bottom" style="font-size: 9px;">
-                        {{ dates[loop.index0][-5:] }}
-                    </small>
-                    
+                    <small class="text-muted d-block mb-1 border-bottom" style="font-size: 9px;">{{ dates[loop.index0][-5:] }}</small>
                     {% if day %}
                         <div class="fw-bold text-dark" style="font-size: 13px;">{{ day.work|int }}</div>
                         <div class="text-muted" style="font-size: 8px;">{{ row.unit }}</div>
-                        {% if day.mat > 0 %}
-                        <div class="badge bg-danger mt-1" style="font-size: 8px;">🚛 {{ day.mat|int }}</div>
-                        {% endif %}
-                    {% else %}
-                        <div class="text-muted py-2">-</div>
-                    {% endif %}
+                        {% if day.mat > 0 %}<div class="badge bg-danger mt-1" style="font-size: 8px;">🚛 {{ day.mat|int }}</div>{% endif %}
+                    {% else %}<div class="text-muted py-2">-</div>{% endif %}
                 </div>
                 {% endfor %}
             </div>
@@ -80,14 +67,12 @@
         <thead class="table-dark">
             <tr>
                 <th class="text-start">Name</th>
-                {% for d in dates %}
-                <th>{{ d[-5:] }}</th> 
-                {% endfor %}
+                {% for d in dates %}<th>{{ d[-5:] }}</th>{% endfor %}
             </tr>
         </thead>
         <tbody>
             {% for row in report %}
-            <tr>
+            <tr class="{% if row.role == 'Mistri' %}table-info{% else %}table-warning{% endif %}">
                 <td class="text-start">
                     <strong>{{ row.name }}</strong><br>
                     <span class="text-muted small">{{ row.role }}</span>
@@ -108,7 +93,9 @@
 
 <div class="d-md-none pb-5">
     {% for row in report %}
-    <div class="card stat-card mb-3 border-0 shadow-sm">
+    <div class="card stat-card mb-3 border-0 shadow-sm"
+         style="{% if row.role == 'Mistri' %}background-color: #e7f3ff; border-left: 5px solid #0d6efd;{% else %}background-color: #fff8e1; border-left: 5px solid #ffc107;{% endif %}">
+         
         <div class="card-body p-3">
             <div class="d-flex justify-content-between mb-2">
                 <h6 class="fw-bold mb-0">{{ row.name }}</h6>
@@ -118,10 +105,7 @@
             <div class="d-flex overflow-auto gap-2 pb-2" style="scrollbar-width: none;">
                 {% for status in row.days %}
                 <div class="text-center" style="min-width: 45px;">
-                    <small class="text-muted d-block mb-1" style="font-size: 10px;">
-                        {{ dates[loop.index0][-5:] }}
-                    </small>
-                    
+                    <small class="text-muted d-block mb-1" style="font-size: 10px;">{{ dates[loop.index0][-5:] }}</small>
                     {% if status == 'Present' %}
                     <div class="rounded-circle bg-success text-white d-flex align-items-center justify-content-center mx-auto" style="width: 35px; height: 35px; font-weight: bold;">P</div>
                     {% elif status == 'Half Day' %}

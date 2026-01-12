@@ -8,16 +8,21 @@
 
 <div class="row pb-5">
     {% for w in workers %}
-    <div class="col-md-6 mb-2">
+    <div class="col-md-6 mb-3">
         <a href="{{ url_for('worker_profile', worker_id=w.id) }}" class="text-decoration-none">
-            <div class="card stat-card border-0 shadow-sm">
+            
+            <div class="card stat-card border-0 shadow-sm"
+                 style="{% if w.role == 'Mistri' %}background-color: #e7f3ff !important; border-left: 5px solid #0d6efd !important;{% else %}background-color: #fff8e1 !important; border-left: 5px solid #ffc107 !important;{% endif %}">
+                
                 <div class="card-body p-3 d-flex align-items-center">
                     {% if w.photo_path %}
-                    <img src="{{ url_for('uploaded_file', filename=w.photo_path) }}" class="rounded-circle me-3 border"
-                        style="width: 50px; height: 50px; object-fit: cover;">
+                    <img src="{{ url_for('uploaded_file', filename=w.photo_path) }}" 
+                         loading="lazy"
+                         class="rounded-circle me-3 border border-2 border-white shadow-sm"
+                         style="width: 55px; height: 55px; object-fit: cover;">
                     {% else %}
-                    <div class="rounded-circle bg-light text-secondary d-flex align-items-center justify-content-center me-3 border"
-                        style="width: 50px; height: 50px; font-size: 20px;">👤</div>
+                    <div class="rounded-circle bg-white text-secondary d-flex align-items-center justify-content-center me-3 border shadow-sm"
+                        style="width: 55px; height: 55px; font-size: 24px;">👤</div>
                     {% endif %}
 
                     <div class="flex-grow-1">
@@ -28,21 +33,25 @@
                         </div>
 
                         <small class="text-muted">{{ w.role }} | 📞 {{ w.phone or 'No Num' }}</small>
-                        {% if w.project_name %}
-                        <span class="badge bg-light text-success border ms-1" style="font-size: 10px;">{{ w.project_name
-                            }}</span>
-                        {% endif %}
+                        
+                        <div class="mt-1">
+                            {% if w.project_name %}
+                            <span class="badge bg-white text-success border" style="font-size: 10px;">{{ w.project_name }}</span>
+                            {% else %}
+                            <span class="badge bg-white text-danger border" style="font-size: 10px;">Idle / Baitha Hua</span>
+                            {% endif %}
+                        </div>
                     </div>
 
-                    <div class="text-end">
-                        <span class="text-muted small">View ></span>
+                    <div class="text-end text-muted opacity-50">
+                        <span class="small">View ➔</span>
                     </div>
                 </div>
             </div>
         </a>
     </div>
     {% else %}
-    <div class="text-center text-muted mt-5">
+    <div class="col-12 text-center text-muted mt-5">
         <p>No workers found. Add one using the + button.</p>
     </div>
     {% endfor %}
