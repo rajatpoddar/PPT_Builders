@@ -86,7 +86,7 @@
                 </div>
                 <div class="col">
                     <span class="text-muted d-block text-uppercase" style="font-size:9px;">Net Profit</span>
-                    {% set profit = p.income - p.grand_total %}
+                    {% set profit = p.income - (p.total_expense + p.total_worker_cost) %}
                     {% if profit >= 0 %}
                         <strong class="text-success fs-5">₹{{ profit|int }}</strong>
                     {% else %}
