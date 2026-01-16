@@ -100,25 +100,25 @@
         <hr class="my-2">
 
         <div class="row text-center">
-            <div class="col border-end">
-                <a href="{{ url_for('project_expenses', project_id=p.id) }}" class="text-decoration-none">
-                    <small class="text-muted">Material</small>
-                    <strong class="text-danger d-block">₹{{ p.total_expense }}</strong>
-                </a>
+                <div class="col border-end">
+                    <a href="{{ url_for('project_expenses', project_id=p.id) }}" class="text-decoration-none">
+                        <small class="text-muted">Material</small>
+                        <strong class="text-danger d-block">₹{{ p.total_expense }}</strong>
+                    </a>
+                </div>
+                <div class="col border-end">
+                    <a href="{{ url_for('project_payments', project_id=p.id) }}" class="text-decoration-none">
+                        <small class="text-muted">Paid</small>
+                        <strong class="text-success d-block">₹{{ p.total_payment }}</strong>
+                    </a>
+                </div>
+                <div class="col">
+                    <a href="{{ url_for('print_expenses', project_id=p.id) }}" class="text-decoration-none">
+                        <small class="text-muted">Total Exp</small>
+                        <strong class="text-dark d-block">₹{{ p.grand_total }}</strong>
+                    </a>
+                </div>
             </div>
-            <div class="col border-end">
-                <a href="{{ url_for('payments') }}" class="text-decoration-none">
-                    <small class="text-muted">Paid</small>
-                    <strong class="text-success d-block">₹{{ p.total_payment }}</strong>
-                </a>
-            </div>
-            <div class="col">
-                <a href="{{ url_for('print_expenses', project_id=p.id) }}" class="text-decoration-none">
-                    <small class="text-muted">Total Exp</small>
-                    <strong class="text-dark d-block">₹{{ p.grand_total }}</strong>
-                </a>
-            </div>
-        </div>
     </div>
 </div>
 

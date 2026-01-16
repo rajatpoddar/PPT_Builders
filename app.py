@@ -38,17 +38,14 @@ def get_db_connection():
 def init_db():
     conn = sqlite3.connect('site_data.db')
     c = conn.cursor()
-    # Projects table updated with target info
-    c.execute('''CREATE TABLE IF NOT EXISTS projects (id INTEGER PRIMARY KEY, name TEXT, location TEXT, target REAL DEFAULT 0, unit TEXT DEFAULT 'Unit')''')
+    c.execute('''CREATE TABLE IF NOT EXISTS projects (id INTEGER PRIMARY KEY, name TEXT, location TEXT, target REAL DEFAULT 0, unit TEXT DEFAULT 'Unit', rate REAL DEFAULT 0)''')
     
-    # Migration hack for existing projects table (purane data me column add karne ke liye)
-    try:
-        c.execute("ALTER TABLE projects ADD COLUMN target REAL DEFAULT 0")
-        c.execute("ALTER TABLE projects ADD COLUMN unit TEXT DEFAULT 'Unit'")
+    # Migrations
+    try: c.execute("ALTER TABLE projects ADD COLUMN target REAL DEFAULT 0")
     except: pass
-
-    try:
-        c.execute("ALTER TABLE projects ADD COLUMN rate REAL DEFAULT 0")
+    try: c.execute("ALTER TABLE projects ADD COLUMN unit TEXT DEFAULT 'Unit'")
+    except: pass
+    try: c.execute("ALTER TABLE projects ADD COLUMN rate REAL DEFAULT 0")
     except: pass
 
     c.execute('''CREATE TABLE IF NOT EXISTS workers 
@@ -57,13 +54,16 @@ def init_db():
                   project_id INTEGER, address TEXT, experience TEXT, rating INTEGER)''')
     c.execute('''CREATE TABLE IF NOT EXISTS expenses 
                  (id INTEGER PRIMARY KEY, item TEXT, amount REAL, date_time TEXT, project_id INTEGER)''')
+    
+    # Updated Attendance Table (Added project_id)
     c.execute('''CREATE TABLE IF NOT EXISTS attendance 
-                 (id INTEGER PRIMARY KEY, worker_id INTEGER, date TEXT, status TEXT)''')
+                 (id INTEGER PRIMARY KEY, worker_id INTEGER, date TEXT, status TEXT, project_id INTEGER)''')
+    try: c.execute("ALTER TABLE attendance ADD COLUMN project_id INTEGER")
+    except: pass
+
     c.execute('''CREATE TABLE IF NOT EXISTS payments 
                  (id INTEGER PRIMARY KEY, worker_id INTEGER, amount REAL, date TEXT, notes TEXT)''')
     c.execute('''CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, username TEXT, password TEXT)''')
-    
-    # NEW: Work Progress Log Table
     c.execute('''CREATE TABLE IF NOT EXISTS work_logs 
                  (id INTEGER PRIMARY KEY, project_id INTEGER, date TEXT, progress REAL, material_loads REAL, notes TEXT)''')
     
@@ -78,7 +78,6 @@ init_db()
 
 # --- ROUTES ---
 
-# PWA Service Worker Route
 @app.route('/sw.js')
 def service_worker():
     response = make_response(send_from_directory('static', 'sw.js'))
@@ -90,67 +89,52 @@ def public_home():
     conn = get_db_connection()
     projects = conn.execute("SELECT * FROM projects").fetchall()
     
-    # 1. Expenses Sum
     expenses_map = {row['project_id']: (row[1] or 0) for row in conn.execute("SELECT project_id, SUM(amount) FROM expenses GROUP BY project_id").fetchall()}
-        
-    # 2. Payments Sum
     payments_map = {row['project_id']: (row[1] or 0) for row in conn.execute("SELECT w.project_id, SUM(p.amount) FROM payments p JOIN workers w ON p.worker_id = w.id GROUP BY w.project_id").fetchall()}
-
-    # 3. Work Progress Data
     prog_rows = conn.execute("SELECT project_id, SUM(progress), COUNT(DISTINCT date) FROM work_logs GROUP BY project_id").fetchall()
     progress_map = {row['project_id']: {'done': (row[1] or 0), 'days': (row[2] or 0)} for row in prog_rows}
 
-    # 4. Worker Cost & Mandays Calculation (New Logic)
-    # Yeh query check karegi ki kis worker ki kitni haziri hai aur uska rate kya hai
+    # FIX: Group by Attendance Project ID (COALESCE handles old records)
     cost_mandays_rows = conn.execute('''
         SELECT 
-            w.project_id, 
+            COALESCE(a.project_id, w.project_id) as pid, 
             SUM(CASE WHEN a.status='Present' THEN w.daily_wage WHEN a.status='Half Day' THEN w.daily_wage/2.0 ELSE 0 END),
             SUM(CASE WHEN a.status='Present' THEN 1 WHEN a.status='Half Day' THEN 0.5 ELSE 0 END)
         FROM workers w 
         JOIN attendance a ON w.id = a.worker_id 
-        GROUP BY w.project_id
+        GROUP BY pid
     ''').fetchall()
-    worker_stats_map = {row['project_id']: {'cost': (row[1] or 0), 'mandays': (row[2] or 0)} for row in cost_mandays_rows}
+    worker_stats_map = {row['pid']: {'cost': (row[1] or 0), 'mandays': (row[2] or 0)} for row in cost_mandays_rows}
 
     public_stats = []
     for p in projects:
         exp = expenses_map.get(p['id'], 0)
         pay = payments_map.get(p['id'], 0)
         
-        # Worker Counts
         workers = conn.execute("SELECT role FROM workers WHERE project_id=?", (p['id'],)).fetchall()
         mistri_count = sum(1 for w in workers if w['role'] == 'Mistri')
         labour_count = sum(1 for w in workers if w['role'] == 'Labour')
         
-        # New Stats
         ws = worker_stats_map.get(p['id'], {'cost': 0, 'mandays': 0})
-        
-        # Estimation Logic
         prog_data = progress_map.get(p['id'], {'done': 0, 'days': 0})
-        done = prog_data['done']
-        days_worked = prog_data['days']
-        target = p['target'] or 0
         
+        target = p['target'] or 0
         est_days = "N/A"
         percent = 0
         if target > 0:
-            percent = int((done / target) * 100)
-            if done > 0 and days_worked > 0:
-                avg_daily = done / days_worked
-                remaining = target - done
-                if remaining > 0:
-                    est_days = int(remaining / avg_daily)
-                else:
-                    est_days = "Done"
+            percent = int((prog_data['done'] / target) * 100)
+            if prog_data['done'] > 0 and prog_data['days'] > 0:
+                avg_daily = prog_data['done'] / prog_data['days']
+                remaining = target - prog_data['done']
+                est_days = int(remaining / avg_daily) if remaining > 0 else "Done"
         
         public_stats.append({
             'name': p['name'], 'location': p['location'], 
             'expense': exp, 'payment': pay, 'grand_total': exp + pay,
             'mistri': mistri_count, 'labour': labour_count,
             'mandays': ws['mandays'],          
-            'total_worker_cost': ws['cost'],   # New: Total Wage Generated
-            'progress_done': done, 'progress_target': target, 
+            'total_worker_cost': ws['cost'],
+            'progress_done': prog_data['done'], 'progress_target': target, 
             'progress_unit': p['unit'], 'progress_percent': percent, 'est_days': est_days
         })
     conn.close()
@@ -177,18 +161,14 @@ def logout():
     logout_user()
     return redirect(url_for('public_home'))
 
-# --- NEW: Change Password Route ---
 @app.route('/change_password', methods=['GET', 'POST'])
 @login_required
 def change_password():
     if request.method == 'POST':
         current_pw = request.form['current_password']
         new_pw = request.form['new_password']
-        
         conn = get_db_connection()
         user = conn.execute("SELECT * FROM users WHERE id=?", (current_user.id,)).fetchone()
-        
-        # Check if old password is correct
         if user and check_password_hash(user['password'], current_pw):
             hashed_pw = generate_password_hash(new_pw, method='pbkdf2:sha256')
             conn.execute("UPDATE users SET password=? WHERE id=?", (hashed_pw, current_user.id))
@@ -200,7 +180,6 @@ def change_password():
         else:
             flash('Error: Old password is wrong!')
             conn.close()
-            
     return render_template('change_password.html')
 
 @app.route('/dashboard')
@@ -213,55 +192,45 @@ def dashboard():
     
     projects = conn.execute("SELECT * FROM projects").fetchall()
     
-    # 1. Data Calculations (Same as public_home)
     expenses_map = {row['project_id']: (row[1] or 0) for row in conn.execute("SELECT project_id, SUM(amount) FROM expenses GROUP BY project_id").fetchall()}
     payments_map = {row['project_id']: (row[1] or 0) for row in conn.execute("SELECT w.project_id, SUM(p.amount) FROM payments p JOIN workers w ON p.worker_id = w.id GROUP BY w.project_id").fetchall()}
     
-    # 2. Work Progress & Material
     prog_rows = conn.execute("SELECT project_id, SUM(progress), SUM(material_loads), COUNT(DISTINCT date) FROM work_logs GROUP BY project_id").fetchall()
     progress_map = {row['project_id']: {'done': (row[1] or 0), 'mat': (row[2] or 0), 'days': (row[3] or 0)} for row in prog_rows}
 
-    # 3. Worker Cost & Mandays
+    # FIX: Group by Attendance Project ID (Handles shifting)
     cost_mandays_rows = conn.execute('''
         SELECT 
-            w.project_id, 
+            COALESCE(a.project_id, w.project_id) as pid, 
             SUM(CASE WHEN a.status='Present' THEN w.daily_wage WHEN a.status='Half Day' THEN w.daily_wage/2.0 ELSE 0 END),
             SUM(CASE WHEN a.status='Present' THEN 1 WHEN a.status='Half Day' THEN 0.5 ELSE 0 END)
         FROM workers w 
         JOIN attendance a ON w.id = a.worker_id 
-        GROUP BY w.project_id
+        GROUP BY pid
     ''').fetchall()
-    worker_stats_map = {row['project_id']: {'cost': (row[1] or 0), 'mandays': (row[2] or 0)} for row in cost_mandays_rows}
+    worker_stats_map = {row['pid']: {'cost': (row[1] or 0), 'mandays': (row[2] or 0)} for row in cost_mandays_rows}
 
     project_stats = []
     for p in projects:
         exp = expenses_map.get(p['id'], 0)
         pay = payments_map.get(p['id'], 0)
         
-        # Counts
         workers = conn.execute("SELECT role FROM workers WHERE project_id=?", (p['id'],)).fetchall()
         m_count = sum(1 for w in workers if w['role'] == 'Mistri')
         l_count = sum(1 for w in workers if w['role'] == 'Labour')
         
-        # New Stats
         ws = worker_stats_map.get(p['id'], {'cost': 0, 'mandays': 0})
         prog_data = progress_map.get(p['id'], {'done': 0, 'mat': 0, 'days': 0})
         
-        # Estimation
-        done = prog_data['done']
         target = p['target'] or 0
-        percent = int((done / target) * 100) if target > 0 else 0
+        percent = int((prog_data['done'] / target) * 100) if target > 0 else 0
         rate = p['rate'] or 0
-
-        # INCOME CALCULATION
-        estimated_income = done * rate  # Kaam * Bhav
-        
-        percent = int((done / target) * 100) if target > 0 else 0
+        estimated_income = prog_data['done'] * rate
         
         est_days = "N/A"
-        if target > 0 and done > 0 and prog_data['days'] > 0:
-            avg = done / prog_data['days']
-            rem = target - done
+        if target > 0 and prog_data['done'] > 0 and prog_data['days'] > 0:
+            avg = prog_data['done'] / prog_data['days']
+            rem = target - prog_data['done']
             est_days = int(rem / avg) if rem > 0 else "Done"
 
         project_stats.append({
@@ -270,8 +239,7 @@ def dashboard():
             'm_count': m_count, 'l_count': l_count,
             'mandays': ws['mandays'],
             'total_worker_cost': ws['cost'],
-            'progress_done': done, 'progress_target': target, 'progress_unit': p['unit'],
-            # 👇 Yahan last me comma lagaya hai
+            'progress_done': prog_data['done'], 'progress_target': target, 'progress_unit': p['unit'],
             'progress_percent': percent, 'material_used': prog_data['mat'], 'est_days': est_days, 
             'rate': rate, 'income': estimated_income
         })
@@ -279,7 +247,6 @@ def dashboard():
     conn.close()
     return render_template('dashboard.html', t_mistri=t_mistri, t_labour=t_labour, p_stats=project_stats, idle_workers=idle_workers)
 
-# --- NEW ROUTE: Add Work Progress ---
 @app.route('/add_work_log', methods=['POST'])
 @login_required
 def add_work_log():
@@ -292,7 +259,6 @@ def add_work_log():
     flash('✅ Work progress updated!')
     return redirect(url_for('dashboard'))
 
-# --- NEW ROUTE: Clickable Stats Lists ---
 @app.route('/list/<category>')
 @login_required
 def worker_list(category):
@@ -312,36 +278,26 @@ def worker_list(category):
     conn.close()
     return render_template('worker_list.html', workers=workers, title=title)
 
-# --- NEW ROUTE: Filtered Expenses ---
-# --- NEW: Edit Expense Route ---
 @app.route('/edit_expense/<int:expense_id>', methods=['GET', 'POST'])
 @login_required
 def edit_expense(expense_id):
     conn = get_db_connection()
-    
-    # Agar Form Submit hua hai (Save Changes)
     if request.method == 'POST':
         item = request.form['item']
         amount = request.form['amount']
         date_time = request.form['date_time'].replace('T', ' ')
         project_id = request.form['project_id']
-        
-        conn.execute('''UPDATE expenses 
-                        SET item=?, amount=?, date_time=?, project_id=? 
-                        WHERE id=?''', 
+        conn.execute('''UPDATE expenses SET item=?, amount=?, date_time=?, project_id=? WHERE id=?''', 
                      (item, amount, date_time, project_id, expense_id))
         conn.commit()
         conn.close()
         flash('Expense updated successfully!')
         return redirect(url_for('expense_log'))
-
-    # Agar Edit Page kholna hai (Get Data)
     expense = conn.execute("SELECT * FROM expenses WHERE id=?", (expense_id,)).fetchone()
     projects = conn.execute("SELECT * FROM projects").fetchall()
     conn.close()
     return render_template('edit_expense.html', expense=expense, projects=projects)
 
-# --- NEW: Delete Expense Route ---
 @app.route('/delete_expense/<int:expense_id>')
 @login_required
 def delete_expense(expense_id):
@@ -362,51 +318,49 @@ def project_expenses(project_id):
     conn.close()
     return render_template('expense_log.html', expenses=expenses, project_name=project['name'], projects=projects, current_pid=project_id)
 
+# --- NEW: Project Payments List ---
+@app.route('/project_payments/<int:project_id>')
+@login_required
+def project_payments(project_id):
+    conn = get_db_connection()
+    project = conn.execute("SELECT * FROM projects WHERE id=?", (project_id,)).fetchone()
+    # Note: Payments are currently filtered by workers currently assigned to this project
+    payments = conn.execute('''SELECT p.*, w.name, w.role 
+                               FROM payments p 
+                               JOIN workers w ON p.worker_id = w.id 
+                               WHERE w.project_id=? 
+                               ORDER BY p.date DESC''', (project_id,)).fetchall()
+    conn.close()
+    return render_template('project_payments.html', payments=payments, project=project)
+
 @app.route('/print_expenses/<int:project_id>')
 @login_required
 def print_expenses(project_id):
     conn = get_db_connection()
-    
-    # Queries Logic
     if project_id == 0:
         project_name = "All Projects"
-        # Expenses
         expenses = conn.execute('''SELECT e.*, p.name as project_name FROM expenses e 
-                                   LEFT JOIN projects p ON e.project_id = p.id 
-                                   ORDER BY e.date_time DESC''').fetchall()
-        # Payments (Join with workers & projects)
+                                   LEFT JOIN projects p ON e.project_id = p.id ORDER BY e.date_time DESC''').fetchall()
         payments = conn.execute('''SELECT p.*, w.name, w.role, proj.name as project_name 
-                                   FROM payments p 
-                                   JOIN workers w ON p.worker_id = w.id 
-                                   LEFT JOIN projects proj ON w.project_id = proj.id 
-                                   ORDER BY p.date DESC''').fetchall()
+                                   FROM payments p JOIN workers w ON p.worker_id = w.id 
+                                   LEFT JOIN projects proj ON w.project_id = proj.id ORDER BY p.date DESC''').fetchall()
     else:
         project = conn.execute("SELECT * FROM projects WHERE id=?", (project_id,)).fetchone()
         project_name = project['name']
-        # Expenses
         expenses = conn.execute("SELECT * FROM expenses WHERE project_id=? ORDER BY date_time DESC", (project_id,)).fetchall()
-        # Payments (Workers of this project)
-        payments = conn.execute('''SELECT p.*, w.name, w.role 
-                                   FROM payments p 
-                                   JOIN workers w ON p.worker_id = w.id 
-                                   WHERE w.project_id=? 
-                                   ORDER BY p.date DESC''', (project_id,)).fetchall()
+        payments = conn.execute('''SELECT p.*, w.name, w.role FROM payments p 
+                                   JOIN workers w ON p.worker_id = w.id WHERE w.project_id=? ORDER BY p.date DESC''', (project_id,)).fetchall()
     
     total_exp = sum(e['amount'] for e in expenses)
     total_pay = sum(p['amount'] for p in payments)
-    
     conn.close()
-    return render_template('print_expenses.html', 
-                           expenses=expenses, payments=payments, 
-                           total_exp=total_exp, total_pay=total_pay, 
-                           project_name=project_name)
+    return render_template('print_expenses.html', expenses=expenses, payments=payments, total_exp=total_exp, total_pay=total_pay, project_name=project_name)
 
 @app.route('/project_workers/<int:project_id>')
 @login_required
 def project_workers(project_id):
     conn = get_db_connection()
     project = conn.execute("SELECT * FROM projects WHERE id=?", (project_id,)).fetchone()
-    # Fix: Join lagaya taki project_name mile aur "Baitha Hua" na dikhe
     workers = conn.execute('''SELECT w.*, p.name as project_name FROM workers w 
                               LEFT JOIN projects p ON w.project_id = p.id 
                               WHERE w.project_id=?''', (project_id,)).fetchall()
@@ -428,20 +382,9 @@ def add_project():
 @login_required
 def edit_project(project_id):
     conn = get_db_connection()
-    
-    name = request.form['name']
-    location = request.form['location']
-    target = request.form.get('target')
-    unit = request.form.get('unit')
-    rate = request.form.get('rate') # <--- NEW
-    
-    if not target or target.strip() == '': target = 0
-    if not rate or rate.strip() == '': rate = 0 # <--- NEW
-    
-    if not unit: unit = 'Unit'
-
     conn.execute('UPDATE projects SET name=?, location=?, target=?, unit=?, rate=? WHERE id=?',
-                 (name, location, target, unit, rate, project_id))
+                 (request.form['name'], request.form['location'], request.form.get('target', 0), 
+                  request.form.get('unit', 'Unit'), request.form.get('rate', 0), project_id))
     conn.commit()
     conn.close()
     flash('✅ Project Updated Successfully!')
@@ -451,7 +394,6 @@ def edit_project(project_id):
 @login_required
 def add_worker():
     conn = get_db_connection()
-    # POST logic same rahega (Save karne wala)
     if request.method == 'POST':
         file = request.files['photo']
         filename = file.filename if file else ''
@@ -464,12 +406,9 @@ def add_worker():
                       request.form['id_number'], request.form['daily_wage'], filename, p_id))
         conn.commit()
         conn.close()
-        return redirect(url_for('add_worker')) # Redirect back to same list page
-
-    # GET: Ab hum workers ki list bhi bhejenge
+        return redirect(url_for('add_worker')) 
     workers = conn.execute('''SELECT w.*, p.name as project_name FROM workers w 
-                              LEFT JOIN projects p ON w.project_id = p.id 
-                              ORDER BY w.id DESC''').fetchall()
+                              LEFT JOIN projects p ON w.project_id = p.id ORDER BY w.id DESC''').fetchall()
     projects = conn.execute("SELECT * FROM projects").fetchall()
     conn.close()
     return render_template('add_worker.html', workers=workers, projects=projects)
@@ -484,17 +423,15 @@ def add_expense():
                  (request.form['item'], request.form['amount'], final_date, request.form['project_id']))
     conn.commit()
     conn.close()
-    return redirect(url_for('expense_log')) # Redirects to full log, user can go back
+    return redirect(url_for('expense_log')) 
 
 @app.route('/expense_log')
 @login_required
 def expense_log():
     conn = get_db_connection()
-    # Projects bhi bhejein taki modal me dropdown dikh sake
     projects = conn.execute("SELECT * FROM projects").fetchall()
     expenses = conn.execute('''SELECT e.*, p.name as project_name FROM expenses e 
-                               LEFT JOIN projects p ON e.project_id = p.id 
-                               ORDER BY e.date_time DESC''').fetchall()
+                               LEFT JOIN projects p ON e.project_id = p.id ORDER BY e.date_time DESC''').fetchall()
     conn.close()
     return render_template('expense_log.html', expenses=expenses, project_name="All Projects", projects=projects, current_pid=0)
 
@@ -504,25 +441,25 @@ def attendance():
     conn = get_db_connection()
     if request.method == 'POST':
         date = request.form['attendance_date']
-        workers = conn.execute("SELECT id FROM workers").fetchall()
+        # FIX: Also fetch current project_id to freeze it in history
+        workers = conn.execute("SELECT id, project_id FROM workers").fetchall()
         for w in workers:
             status = request.form.get(f'status_{w["id"]}')
             if status:
                 exists = conn.execute("SELECT id FROM attendance WHERE worker_id=? AND date=?", (w['id'], date)).fetchone()
+                # Use current project_id (w['project_id']) to lock expense to that site
                 if exists:
-                    conn.execute("UPDATE attendance SET status=? WHERE id=?", (status, exists['id']))
+                    conn.execute("UPDATE attendance SET status=?, project_id=? WHERE id=?", (status, w['project_id'], exists['id']))
                 else:
-                    conn.execute("INSERT INTO attendance (worker_id, date, status) VALUES (?, ?, ?)", (w['id'], date, status))
+                    conn.execute("INSERT INTO attendance (worker_id, date, status, project_id) VALUES (?, ?, ?, ?)", (w['id'], date, status, w['project_id']))
         conn.commit()
         return redirect(url_for('attendance_report'))
 
     today_date = datetime.now().strftime('%Y-%m-%d')
-    workers = conn.execute('''SELECT w.*, p.name as project_name 
-                              FROM workers w 
+    workers = conn.execute('''SELECT w.*, p.name as project_name FROM workers w 
                               LEFT JOIN projects p ON w.project_id = p.id 
                               WHERE w.project_id IS NOT NULL AND w.project_id > 0 
                               ORDER BY w.role, w.name''').fetchall()
-                              
     conn.close()
     return render_template('attendance.html', workers=workers, today_date=today_date)
 
@@ -530,10 +467,8 @@ def attendance():
 @login_required
 def attendance_report():
     conn = get_db_connection()
-    # Pichle 7 din ki dates
     dates = [(datetime.now() - timedelta(days=i)).strftime('%Y-%m-%d') for i in range(6, -1, -1)]
     
-    # --- 1. Worker Attendance Data ---
     workers = conn.execute("SELECT * FROM workers WHERE project_id IS NOT NULL AND project_id > 0").fetchall()
     worker_report = []
     for w in workers:
@@ -543,16 +478,12 @@ def attendance_report():
             w_row['days'].append(stat['status'] if stat else '-')
         worker_report.append(w_row)
         
-    # --- 2. Site Progress Data (Updated Fix) ---
     projects = conn.execute("SELECT * FROM projects").fetchall()
     site_report = []
     for p in projects:
         p_row = {'name': p['name'], 'unit': p['unit'], 'days': []}
         for d in dates:
-            # FIX: Yahan SUM() lagaya hai taki ek din ki sari entry jud jayein
             log = conn.execute("SELECT SUM(progress) as progress, SUM(material_loads) as material_loads FROM work_logs WHERE project_id=? AND date=?", (p['id'], d)).fetchone()
-            
-            # Check karte hain ki data hai ya nahi (SUM None return kar sakta hai)
             if log and log['progress'] is not None:
                 p_row['days'].append({'work': log['progress'], 'mat': log['material_loads']})
             else:
@@ -574,8 +505,6 @@ def payments():
     
     workers = conn.execute('''SELECT w.*, p.name as project_name FROM workers w LEFT JOIN projects p ON w.project_id = p.id''').fetchall()
     
-    # --- SPEED OPTIMIZATION START ---
-    # Attendance Count Pre-fetch
     att_map = {} 
     att_rows = conn.execute("SELECT worker_id, status, COUNT(*) FROM attendance GROUP BY worker_id, status").fetchall()
     for row in att_rows:
@@ -584,12 +513,10 @@ def payments():
         if wid not in att_map: att_map[wid] = {'Present': 0, 'Half Day': 0}
         if status in att_map[wid]: att_map[wid][status] = row[2]
         
-    # Payments Sum Pre-fetch
     pay_map = {}
     pay_rows = conn.execute("SELECT worker_id, SUM(amount) FROM payments GROUP BY worker_id").fetchall()
     for row in pay_rows:
         pay_map[row['worker_id']] = row[1] or 0
-    # --- SPEED OPTIMIZATION END ---
 
     payment_summary = []
     t_paid = 0
@@ -598,7 +525,6 @@ def payments():
         stats = att_map.get(w['id'], {'Present': 0, 'Half Day': 0})
         p_days = stats['Present']
         h_days = stats['Half Day']
-        
         total_earned = (p_days * w['daily_wage']) + (h_days * (w['daily_wage']/2))
         total_paid = pay_map.get(w['id'], 0)
         balance = total_earned - total_paid
@@ -623,7 +549,6 @@ def worker_profile(worker_id):
 @login_required
 def update_profile(worker_id):
     conn = get_db_connection()
-    # Name, Phone, Wage, Role sab update hoga ab
     conn.execute('''UPDATE workers SET 
                     name=?, phone=?, role=?, daily_wage=?, 
                     address=?, experience=?, rating=?, project_id=? 
@@ -644,47 +569,34 @@ def uploaded_file(filename):
 @login_required
 def print_attendance():
     conn = get_db_connection()
-    
-    # --- 1. Date Filter Logic ---
     start_date_str = request.args.get('start_date')
     end_date_str = request.args.get('end_date')
-    
     if start_date_str and end_date_str:
         start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
         end_date = datetime.strptime(end_date_str, '%Y-%m-%d')
     else:
         end_date = datetime.now()
         start_date = end_date - timedelta(days=6) 
-        
     dates = []
     curr = start_date
     while curr <= end_date:
         dates.append(curr.strftime('%Y-%m-%d'))
         curr += timedelta(days=1)
-        
-    # --- 2. Statistics Variables ---
+    
     total_mandays = 0
     total_work_done = {} 
     
-    # --- 3. Site Progress Data (Updated Fix) ---
     projects = conn.execute("SELECT * FROM projects").fetchall()
     site_report = []
     for p in projects:
         p_row = {'name': p['name'], 'unit': p['unit'], 'days': [], 'total_site_work': 0}
         for d in dates:
-            # FIX: Yahan bhi SUM() lagaya hai
             log = conn.execute("SELECT SUM(progress) as progress, SUM(material_loads) as material_loads FROM work_logs WHERE project_id=? AND date=?", (p['id'], d)).fetchone()
-            
             if log and log['progress'] is not None:
                 progress = log['progress'] or 0
                 mat_loads = log['material_loads'] or 0
-                
                 p_row['days'].append({'work': progress, 'mat': mat_loads})
-                
-                # Stats Add karo
                 p_row['total_site_work'] += progress
-                
-                # Grand Total calculation
                 u = p['unit'] or 'Unit'
                 if u not in total_work_done: total_work_done[u] = 0
                 total_work_done[u] += progress
@@ -692,7 +604,6 @@ def print_attendance():
                 p_row['days'].append(None)
         site_report.append(p_row)
 
-    # --- 4. Worker Attendance Data ---
     workers = conn.execute('''SELECT w.*, p.name as project_name FROM workers w 
                               LEFT JOIN projects p ON w.project_id = p.id 
                               WHERE w.project_id IS NOT NULL AND w.project_id > 0 
@@ -705,27 +616,18 @@ def print_attendance():
             stat = conn.execute("SELECT status FROM attendance WHERE worker_id=? AND date=?", (w['id'], d)).fetchone()
             status = stat['status'] if stat else '-'
             w_row['days'].append(status)
-            
-            # Manday Calculation
             if status == 'Present':
                 total_mandays += 1
                 w_row['p_count'] += 1
             elif status == 'Half Day':
                 total_mandays += 0.5
                 w_row['p_count'] += 0.5
-                
         worker_report.append(w_row)
 
     conn.close()
-    
-    return render_template('print_attendance.html', 
-                           dates=dates, 
-                           site_report=site_report, 
-                           worker_report=worker_report,
-                           start_date=start_date.strftime('%Y-%m-%d'),
-                           end_date=end_date.strftime('%Y-%m-%d'),
-                           total_mandays=total_mandays,
-                           total_work_done=total_work_done)
+    return render_template('print_attendance.html', dates=dates, site_report=site_report, worker_report=worker_report,
+                           start_date=start_date.strftime('%Y-%m-%d'), end_date=end_date.strftime('%Y-%m-%d'),
+                           total_mandays=total_mandays, total_work_done=total_work_done)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)

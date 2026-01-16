@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h5 class="mb-0">💸 Payments Made</h5>
+        <small class="text-muted">{{ project.name }}</small>
+    </div>
+    <div>
+        <a href="{{ url_for('dashboard') }}" class="btn btn-sm btn-secondary">Back</a>
+    </div>
+</div>
+
+<div class="card stat-card shadow-sm border-0">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-striped mb-0 align-middle">
+                <thead class="bg-light">
+                    <tr>
+                        <th>Date</th>
+                        <th>Worker</th>
+                        <th>Role</th>
+                        <th class="text-end">Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for pay in payments %}
+                    <tr>
+                        <td class="small">{{ pay.date }}</td>
+                        <td class="fw-bold">{{ pay.name }}</td>
+                        <td><span class="badge bg-light text-dark border">{{ pay.role }}</span></td>
+                        <td class="text-end text-success fw-bold">₹{{ pay.amount }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="4" class="text-center py-4 text-muted">
+                            No payments recorded for current staff.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

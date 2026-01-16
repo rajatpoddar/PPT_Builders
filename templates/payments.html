@@ -58,11 +58,16 @@
                         <span class="fw-bold text-success">₹{{ s.paid|int }}</span>
                     </div>
                     <div class="col">
-                        <small class="text-muted d-block" style="font-size: 10px;">DUE / BAKI</small>
+                        <small class="text-muted d-block" style="font-size: 10px;">DUE / ADVANCE</small>
+                        
                         {% if s.balance > 0 %}
-                        <span class="fw-bold text-danger">₹{{ s.balance|int }}</span>
+                            <span class="fw-bold text-danger">₹{{ s.balance|int }}</span>
+                        
+                        {% elif s.balance < 0 %}
+                            <span class="fw-bold text-primary">Adv. ₹{{ s.balance|abs|int }}</span>
+                        
                         {% else %}
-                        <span class="fw-bold text-success">Ok</span>
+                            <span class="fw-bold text-success">Ok</span>
                         {% endif %}
                     </div>
                 </div>
