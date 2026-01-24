@@ -3,21 +3,28 @@
 
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h5 class="mb-0">📝 Mark Attendance</h5>
-    <a href="{{ url_for('attendance_report') }}" class="btn btn-sm btn-secondary">Cancel</a>
+    <a href="{{ url_for('attendance_report') }}" class="btn btn-sm btn-secondary">Report</a>
 </div>
 
-<form action="{{ url_for('attendance') }}" method="POST">
-    
-    <div class="card shadow-sm border-0 mb-3 bg-light">
+<form action="{{ url_for('attendance') }}" method="GET" id="dateForm" class="mb-3">
+    <div class="card shadow-sm border-0 bg-light">
         <div class="card-body p-2 d-flex align-items-center justify-content-between">
             <span class="fw-bold text-muted small">DATE:</span>
-            <input type="date" name="attendance_date" value="{{ today_date }}" class="form-control form-control-sm w-auto border-0 bg-white fw-bold shadow-sm">
+            <input type="date" name="date" value="{{ today_date }}" 
+                   class="form-control form-control-sm w-auto border-0 bg-white fw-bold shadow-sm"
+                   onchange="document.getElementById('dateForm').submit()">
         </div>
     </div>
+</form>
+
+<form action="{{ url_for('attendance') }}" method="POST">
+    <input type="hidden" name="attendance_date" value="{{ today_date }}">
 
     <div class="pb-5">
         {% for w in workers %}
         
+        {% set current_status = status_map.get(w.id) %}
+
         <div class="card stat-card mb-3 border-0 shadow-sm"
              style="{% if w.role == 'Mistri' %}background-color: #e7f3ff; border-left: 5px solid #0d6efd;{% else %}background-color: #fff8e1; border-left: 5px solid #ffc107;{% endif %}">
             
@@ -31,39 +38,31 @@
                     
                     <div>
                         <h6 class="mb-0 fw-bold">{{ w.name }}</h6>
-                        
-                        <div class="text-warning" style="font-size: 10px; line-height: 1;">
-                            {% if w.rating %}{% for i in range(w.rating) %}⭐{% endfor %}{% endif %}
-                        </div>
-
                         <small class="text-muted">{{ w.role }}</small>
-                        
                         {% if w.project_name %}
                         <span class="badge bg-light text-success border ms-1" style="font-size: 9px;">{{ w.project_name }}</span>
-                        {% else %}
-                        <span class="badge bg-light text-danger border ms-1" style="font-size: 9px;">Idle</span>
                         {% endif %}
                     </div>
                 </div>
 
                 <div class="btn-group w-100" role="group">
                     
-                    <input type="radio" class="btn-check" name="status_{{ w.id }}" value="Present" id="p_{{ w.id }}" checked>
+                    <input type="radio" class="btn-check" name="status_{{ w.id }}" value="Present" id="p_{{ w.id }}"
+                           {% if current_status == 'Present' or not current_status %}checked{% endif %}>
                     <label class="btn btn-outline-success py-2" for="p_{{ w.id }}">
                         <span class="d-block h5 mb-0">Present</span>
-                        <small>Full Day</small>
                     </label>
 
-                    <input type="radio" class="btn-check" name="status_{{ w.id }}" value="Half Day" id="h_{{ w.id }}">
+                    <input type="radio" class="btn-check" name="status_{{ w.id }}" value="Half Day" id="h_{{ w.id }}"
+                           {% if current_status == 'Half Day' %}checked{% endif %}>
                     <label class="btn btn-outline-warning py-2 text-dark" for="h_{{ w.id }}">
                         <span class="d-block h5 mb-0">Half</span>
-                        <small>Day</small>
                     </label>
 
-                    <input type="radio" class="btn-check" name="status_{{ w.id }}" value="Absent" id="a_{{ w.id }}">
+                    <input type="radio" class="btn-check" name="status_{{ w.id }}" value="Absent" id="a_{{ w.id }}"
+                           {% if current_status == 'Absent' %}checked{% endif %}>
                     <label class="btn btn-outline-danger py-2" for="a_{{ w.id }}">
                         <span class="d-block h5 mb-0">Absent</span>
-                        <small>Chutti</small>
                     </label>
 
                 </div>
@@ -74,12 +73,10 @@
 
     <div class="fixed-bottom p-3 bg-white border-top shadow-lg" style="bottom: 70px; z-index: 900;">
         <button type="submit" class="btn btn-primary w-100 py-2 fw-bold rounded-pill shadow">
-            ✅ Save All Attendance
+            ✅ Save Attendance ({{ today_date }})
         </button>
     </div>
 
 </form>
-
 <div style="height: 100px;"></div>
-
 {% endblock %}

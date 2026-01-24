@@ -15,16 +15,21 @@ login_manager.init_app(app)
 login_manager.login_view = 'login'
 
 class User(UserMixin):
-    def __init__(self, id, username):
+    def __init__(self, id, username, role='admin', project_id=None):
         self.id = id
         self.username = username
+        self.role = role
+        self.project_id = project_id
 
 @login_manager.user_loader
 def load_user(user_id):
     conn = get_db_connection()
     u = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
     conn.close()
-    if u: return User(id=u['id'], username=u['username'])
+    if u: 
+        role = u['role'] if 'role' in u.keys() else 'admin'
+        p_id = u['project_id'] if 'project_id' in u.keys() else None
+        return User(id=u['id'], username=u['username'], role=role, project_id=p_id)
     return None
 
 if not os.path.exists(app.config['UPLOAD_FOLDER']):
@@ -67,10 +72,21 @@ def init_db():
     c.execute('''CREATE TABLE IF NOT EXISTS work_logs 
                  (id INTEGER PRIMARY KEY, project_id INTEGER, date TEXT, progress REAL, material_loads REAL, notes TEXT)''')
     
+    # --- NEW MIGRATIONS ---
+    try: c.execute("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'admin'")
+    except: pass
+    try: c.execute("ALTER TABLE users ADD COLUMN project_id INTEGER")
+    except: pass
+    try: c.execute("ALTER TABLE expenses ADD COLUMN bill_path TEXT")
+    except: pass
+    try: c.execute("ALTER TABLE expenses ADD COLUMN entered_by TEXT")
+    except: pass
+    
+    # Admin creation logic same...
     admin = c.execute("SELECT * FROM users WHERE username='admin'").fetchone()
     if not admin:
         hashed_pw = generate_password_hash('admin123', method='pbkdf2:sha256')
-        c.execute("INSERT INTO users (username, password) VALUES (?, ?)", ('admin', hashed_pw))
+        c.execute("INSERT INTO users (username, password, role) VALUES (?, ?, ?)", ('admin', hashed_pw, 'admin'))
     conn.commit()
     conn.close()
 
@@ -149,7 +165,15 @@ def login():
         user = conn.execute("SELECT * FROM users WHERE username = ?", (username,)).fetchone()
         conn.close()
         if user and check_password_hash(user['password'], password):
-            login_user(User(id=user['id'], username=user['username']))
+            # Load extra fields
+            role = user['role'] if 'role' in user.keys() else 'admin'
+            p_id = user['project_id'] if 'project_id' in user.keys() else None
+            
+            login_user(User(id=user['id'], username=user['username'], role=role, project_id=p_id))
+            
+            # REDIRECT LOGIC
+            if role == 'foreman':
+                return redirect(url_for('foreman_dashboard'))
             return redirect(url_for('dashboard'))
         else:
             flash('Login Failed.')
@@ -418,50 +442,124 @@ def add_worker():
 def add_expense():
     user_date = request.form.get('date_time')
     final_date = user_date.replace('T', ' ') if user_date else datetime.now().strftime('%Y-%m-%d %H:%M')
+    
+    # --- Image Upload Logic (Camera + File Support) ---
+    # Pehle normal upload check karega, agar khali hai to camera input check karega
+    file = request.files.get('bill_photo')
+    if not file or file.filename == '':
+        file = request.files.get('bill_camera') # Camera input
+
+    filename = None
+    if file and file.filename != '':
+        # Filename secure karo
+        ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else 'jpg'
+        filename = "bill_" + datetime.now().strftime('%Y%m%d%H%M%S') + "." + ext
+        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+
+    # Identify who entered
+    entered_by = f"{current_user.username} ({current_user.role})"
+
     conn = get_db_connection()
-    conn.execute("INSERT INTO expenses (item, amount, date_time, project_id) VALUES (?, ?, ?, ?)", 
-                 (request.form['item'], request.form['amount'], final_date, request.form['project_id']))
+    conn.execute("INSERT INTO expenses (item, amount, date_time, project_id, bill_path, entered_by) VALUES (?, ?, ?, ?, ?, ?)", 
+                 (request.form['item'], request.form['amount'], final_date, request.form['project_id'], filename, entered_by))
     conn.commit()
     conn.close()
-    return redirect(url_for('expense_log')) 
+    
+    return redirect(request.referrer or url_for('expense_log'))
 
 @app.route('/expense_log')
 @login_required
 def expense_log():
     conn = get_db_connection()
-    projects = conn.execute("SELECT * FROM projects").fetchall()
-    expenses = conn.execute('''SELECT e.*, p.name as project_name FROM expenses e 
-                               LEFT JOIN projects p ON e.project_id = p.id ORDER BY e.date_time DESC''').fetchall()
+    
+    # Default back link (Admin ke liye)
+    back_url = url_for('dashboard') 
+    
+    if current_user.role == 'foreman':
+        pid = current_user.project_id
+        project = conn.execute("SELECT * FROM projects WHERE id=?", (pid,)).fetchone()
+        project_name = project['name'] if project else "My Site"
+        current_pid = pid
+        
+        # --- FIX: Filter by Entered By ---
+        # Sirf wahi rows uthao jisme entered_by me current username match ho
+        user_signature = f"{current_user.username}%"
+        
+        expenses = conn.execute('''SELECT e.*, p.name as project_name FROM expenses e 
+                                   LEFT JOIN projects p ON e.project_id = p.id 
+                                   WHERE e.project_id=? AND e.entered_by LIKE ?
+                                   ORDER BY e.date_time DESC''', (pid, user_signature)).fetchall()
+        
+        # Foreman ke liye back link
+        back_url = url_for('foreman_dashboard')
+        projects = [] 
+        
+    else:
+        # Admin Logic (Sab dikhega)
+        projects = conn.execute("SELECT * FROM projects").fetchall()
+        expenses = conn.execute('''SELECT e.*, p.name as project_name FROM expenses e 
+                                   LEFT JOIN projects p ON e.project_id = p.id ORDER BY e.date_time DESC''').fetchall()
+        project_name = "All Projects"
+        current_pid = 0
+
     conn.close()
-    return render_template('expense_log.html', expenses=expenses, project_name="All Projects", projects=projects, current_pid=0)
+    return render_template('expense_log.html', expenses=expenses, project_name=project_name, 
+                           projects=projects, current_pid=current_pid, back_url=back_url)
 
 @app.route('/attendance', methods=['GET', 'POST'])
 @login_required
 def attendance():
     conn = get_db_connection()
+    
+    # --- GET: Display Page ---
+    if request.method == 'GET':
+        selected_date = request.args.get('date') or datetime.now().strftime('%Y-%m-%d')
+        today_date = datetime.now().strftime('%Y-%m-%d')
+
+        # Restriction: Foreman can only see/edit Today
+        if current_user.role == 'foreman' and selected_date != today_date:
+            flash("⚠️ Foreman sirf aaj ki attendance laga sakta hai!")
+            return redirect(url_for('attendance', date=today_date))
+
+        # Workers fetch logic...
+        workers_query = "SELECT w.*, p.name as project_name FROM workers w LEFT JOIN projects p ON w.project_id = p.id WHERE w.project_id IS NOT NULL AND w.project_id > 0"
+        
+        # Agar foreman hai to sirf uske project ke workers dikhao
+        if current_user.role == 'foreman':
+            workers = conn.execute(workers_query + " AND w.project_id=?", (current_user.project_id,)).fetchall()
+        else:
+            workers = conn.execute(workers_query + " ORDER BY w.role, w.name").fetchall()
+        
+        existing_att = conn.execute("SELECT worker_id, status FROM attendance WHERE date=?", (selected_date,)).fetchall()
+        status_map = {row['worker_id']: row['status'] for row in existing_att}
+
+        conn.close()
+        return render_template('attendance.html', workers=workers, today_date=selected_date, status_map=status_map)
+
+    # --- POST: Save Attendance ---
     if request.method == 'POST':
         date = request.form['attendance_date']
-        # FIX: Also fetch current project_id to freeze it in history
+        today_str = datetime.now().strftime('%Y-%m-%d')
+
+        # SECURITY CHECK: Foreman previous date edit nahi kar sakta
+        if current_user.role == 'foreman' and date != today_str:
+            flash("🚫 Error: Aap purani date ki attendance change nahi kar sakte.")
+            return redirect(url_for('foreman_dashboard'))
+
         workers = conn.execute("SELECT id, project_id FROM workers").fetchall()
         for w in workers:
             status = request.form.get(f'status_{w["id"]}')
             if status:
                 exists = conn.execute("SELECT id FROM attendance WHERE worker_id=? AND date=?", (w['id'], date)).fetchone()
-                # Use current project_id (w['project_id']) to lock expense to that site
                 if exists:
                     conn.execute("UPDATE attendance SET status=?, project_id=? WHERE id=?", (status, w['project_id'], exists['id']))
                 else:
                     conn.execute("INSERT INTO attendance (worker_id, date, status, project_id) VALUES (?, ?, ?, ?)", (w['id'], date, status, w['project_id']))
         conn.commit()
+        
+        if current_user.role == 'foreman':
+            return redirect(url_for('foreman_dashboard'))
         return redirect(url_for('attendance_report'))
-
-    today_date = datetime.now().strftime('%Y-%m-%d')
-    workers = conn.execute('''SELECT w.*, p.name as project_name FROM workers w 
-                              LEFT JOIN projects p ON w.project_id = p.id 
-                              WHERE w.project_id IS NOT NULL AND w.project_id > 0 
-                              ORDER BY w.role, w.name''').fetchall()
-    conn.close()
-    return render_template('attendance.html', workers=workers, today_date=today_date)
 
 @app.route('/attendance_report')
 @login_required
@@ -496,6 +594,11 @@ def attendance_report():
 @app.route('/payments', methods=['GET', 'POST'])
 @login_required
 def payments():
+    # --- SECURITY CHECK: Sirf Admin hi access kar sakta hai ---
+    if current_user.role != 'admin':
+        flash("🚫 Access Denied! Payments page is for Admins only.")
+        return redirect(url_for('foreman_dashboard'))
+    
     conn = get_db_connection()
     if request.method == 'POST':
         conn.execute("INSERT INTO payments (worker_id, amount, date) VALUES (?, ?, ?)", 
@@ -571,12 +674,15 @@ def print_attendance():
     conn = get_db_connection()
     start_date_str = request.args.get('start_date')
     end_date_str = request.args.get('end_date')
+    
+    # --- Date Range Logic ---
     if start_date_str and end_date_str:
         start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
         end_date = datetime.strptime(end_date_str, '%Y-%m-%d')
     else:
         end_date = datetime.now()
         start_date = end_date - timedelta(days=6) 
+    
     dates = []
     curr = start_date
     while curr <= end_date:
@@ -586,6 +692,7 @@ def print_attendance():
     total_mandays = 0
     total_work_done = {} 
     
+    # --- 1. Site Work Report (Same as before) ---
     projects = conn.execute("SELECT * FROM projects").fetchall()
     site_report = []
     for p in projects:
@@ -604,30 +711,159 @@ def print_attendance():
                 p_row['days'].append(None)
         site_report.append(p_row)
 
+    # --- 2. Worker Attendance Report (FIXED LOGIC) ---
+    # Query updated: Removed "WHERE project_id > 0". Now fetches ALL workers.
     workers = conn.execute('''SELECT w.*, p.name as project_name FROM workers w 
                               LEFT JOIN projects p ON w.project_id = p.id 
-                              WHERE w.project_id IS NOT NULL AND w.project_id > 0 
-                              ORDER BY w.project_id, w.role''').fetchall()
+                              ORDER BY p.name, w.role''').fetchall()
     
     worker_report = []
     for w in workers:
-        w_row = {'name': w['name'], 'role': w['role'], 'project_name': w['project_name'], 'days': [], 'p_count': 0}
+        # Default Project Name if Idle
+        p_name = w['project_name'] if w['project_name'] else 'Idle/Left'
+        w_row = {'name': w['name'], 'role': w['role'], 'project_name': p_name, 'days': [], 'p_count': 0}
+        
+        has_attendance_in_range = False
+        
         for d in dates:
             stat = conn.execute("SELECT status FROM attendance WHERE worker_id=? AND date=?", (w['id'], d)).fetchone()
             status = stat['status'] if stat else '-'
             w_row['days'].append(status)
+            
+            # Check if worker has ANY data in this range
+            if status != '-':
+                has_attendance_in_range = True
+            
             if status == 'Present':
-                total_mandays += 1
                 w_row['p_count'] += 1
             elif status == 'Half Day':
-                total_mandays += 0.5
                 w_row['p_count'] += 0.5
-        worker_report.append(w_row)
+        
+        # LOGIC: Report me tabhi dikhao agar (Abhi Active Hai) YA (Is range me Attendance hai)
+        if has_attendance_in_range or (w['project_id'] and w['project_id'] > 0):
+            worker_report.append(w_row)
+            total_mandays += w_row['p_count']
 
     conn.close()
     return render_template('print_attendance.html', dates=dates, site_report=site_report, worker_report=worker_report,
                            start_date=start_date.strftime('%Y-%m-%d'), end_date=end_date.strftime('%Y-%m-%d'),
                            total_mandays=total_mandays, total_work_done=total_work_done)
+
+@app.route('/foreman_dashboard')
+@login_required
+def foreman_dashboard():
+    if current_user.role != 'foreman':
+        return redirect(url_for('dashboard'))
+    
+    pid = current_user.project_id
+    if not pid:
+        flash("No project assigned.")
+        return redirect(url_for('logout'))
+
+    conn = get_db_connection()
+    project = conn.execute("SELECT * FROM projects WHERE id=?", (pid,)).fetchone()
+    
+    # Workers count
+    workers = conn.execute("SELECT role FROM workers WHERE project_id=?", (pid,)).fetchall()
+    m_count = sum(1 for w in workers if w['role'] == 'Mistri')
+    l_count = sum(1 for w in workers if w['role'] == 'Labour')
+
+    # Progress
+    total_prog = conn.execute("SELECT SUM(progress) FROM work_logs WHERE project_id=?", (pid,)).fetchone()[0] or 0
+    
+    # Check if attendance marked today
+    today = datetime.now().strftime('%Y-%m-%d')
+    att_done = conn.execute("SELECT COUNT(*) FROM attendance WHERE date=? AND project_id=?", (today, pid)).fetchone()[0]
+    
+    target = project['target'] or 0
+    percent = int((total_prog / target) * 100) if target > 0 else 0
+
+    conn.close()
+    return render_template('foreman_dashboard.html', p=project, m_count=m_count, l_count=l_count, 
+                           percent=percent, total_prog=total_prog, att_done=att_done)
+
+@app.route('/make_foreman/<int:worker_id>')
+@login_required
+def make_foreman(worker_id):
+    if current_user.role != 'admin':
+        flash('Only Admin can create Foremen!')
+        return redirect(url_for('dashboard'))
+        
+    conn = get_db_connection()
+    worker = conn.execute("SELECT * FROM workers WHERE id=?", (worker_id,)).fetchone()
+    
+    if worker:
+        # Check if worker is assigned to a project
+        if not worker['project_id'] or worker['project_id'] == 0:
+            flash('Error: Foreman must be assigned to a project first (Cannot be Idle).')
+            conn.close()
+            return redirect(url_for('worker_profile', worker_id=worker_id))
+
+        username = worker['name'].split()[0].lower() + str(worker['id'])
+        exists = conn.execute("SELECT * FROM users WHERE username=?", (username,)).fetchone()
+        
+        if not exists:
+            hashed_pw = generate_password_hash('123456', method='pbkdf2:sha256')
+            # Save Project ID to User Table
+            conn.execute("INSERT INTO users (username, password, role, project_id) VALUES (?, ?, ?, ?)", 
+                         (username, hashed_pw, 'foreman', worker['project_id']))
+            flash(f"Foreman Created! Username: {username} | Password: 123456")
+        else:
+            flash(f"User already exists: {username}")
+            
+    conn.commit()
+    conn.close()
+    return redirect(url_for('worker_profile', worker_id=worker_id))
+
+@app.route('/salary_slip/<int:worker_id>')
+@login_required
+def salary_slip(worker_id):
+    conn = get_db_connection()
+    
+    # --- Date Filter Logic (Default: Current Month) ---
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    
+    if not start_date or not end_date:
+        today = datetime.now()
+        # Default: 1st day of current month to Today
+        start_date = today.replace(day=1).strftime('%Y-%m-%d')
+        end_date = today.strftime('%Y-%m-%d')
+
+    # Worker Details
+    worker = conn.execute('''SELECT w.*, p.name as project_name, p.location 
+                             FROM workers w 
+                             LEFT JOIN projects p ON w.project_id = p.id 
+                             WHERE w.id=?''', (worker_id,)).fetchone()
+
+    # --- 1. Attendance Calculation (Between Dates) ---
+    att_rows = conn.execute('''SELECT status, COUNT(*) as cnt 
+                               FROM attendance 
+                               WHERE worker_id=? AND date BETWEEN ? AND ? 
+                               GROUP BY status''', (worker_id, start_date, end_date)).fetchall()
+    
+    p_days = 0
+    h_days = 0
+    for row in att_rows:
+        if row['status'] == 'Present': p_days = row['cnt']
+        elif row['status'] == 'Half Day': h_days = row['cnt']
+    
+    total_mandays = p_days + (h_days * 0.5)
+    total_earned = total_mandays * worker['daily_wage']
+
+    # --- 2. Payments/Advances Taken (Between Dates) ---
+    advances = conn.execute('''SELECT * FROM payments 
+                               WHERE worker_id=? AND date BETWEEN ? AND ? 
+                               ORDER BY date''', (worker_id, start_date, end_date)).fetchall()
+    
+    total_taken = sum(a['amount'] for a in advances)
+    net_payable = total_earned - total_taken
+
+    conn.close()
+    return render_template('salary_slip.html', w=worker, start_date=start_date, end_date=end_date,
+                           p_days=p_days, h_days=h_days, total_mandays=total_mandays,
+                           total_earned=total_earned, advances=advances, total_taken=total_taken,
+                           net_payable=net_payable, generated_on=datetime.now())
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)

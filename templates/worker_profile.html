@@ -40,6 +40,22 @@
         <strong>⚙️ Update Full Details</strong>
     </div>
     <div class="card-body">
+        {% if current_user.role == 'admin' %}
+        <div class="mb-3">
+            <a href="{{ url_for('make_foreman', worker_id=w.id) }}" class="btn btn-outline-dark w-100"
+                onclick="return confirm('Is worker ke liye naya login ban jayega.\nUsername: {{ w.name.split()[0]|lower }}{{w.id}}\nPassword: 123456\nConfirm?')">
+                🔑 Make Foreman (Create Login)
+            </a>
+        </div>
+        {% endif %}
+        <div class="row g-2 mb-4">
+            <div class="col-12">
+                <a href="{{ url_for('salary_slip', worker_id=w.id) }}"
+                    class="btn btn-primary w-100 py-2 shadow-sm fw-bold d-flex align-items-center justify-content-center gap-2">
+                    📄 Generate Salary Slip (Hisaab)
+                </a>
+            </div>
+        </div>
         <form action="{{ url_for('update_profile', worker_id=w.id) }}" method="POST">
 
             <div class="row g-2">
@@ -49,7 +65,8 @@
                 </div>
                 <div class="col-6">
                     <label class="small text-muted">Daily Wage (₹)</label>
-                    <input type="number" name="daily_wage" class="form-control mb-2" value="{{ w.daily_wage }}" required>
+                    <input type="number" name="daily_wage" class="form-control mb-2" value="{{ w.daily_wage }}"
+                        required>
                 </div>
             </div>
 
@@ -57,13 +74,14 @@
                 <div class="col-6">
                     <label class="small text-muted">Role</label>
                     <select name="role" class="form-select mb-2">
-                        <option value="Mistri" {% if w.role == 'Mistri' %}selected{% endif %}>Mistri</option>
-                        <option value="Labour" {% if w.role == 'Labour' %}selected{% endif %}>Labour</option>
+                        <option value="Mistri" {% if w.role=='Mistri' %}selected{% endif %}>Mistri</option>
+                        <option value="Labour" {% if w.role=='Labour' %}selected{% endif %}>Labour</option>
                     </select>
                 </div>
                 <div class="col-6">
                     <label class="small text-muted">Mobile (Optional)</label>
-                    <input type="tel" name="phone" class="form-control mb-2" value="{{ w.phone or '' }}" placeholder="No Number">
+                    <input type="tel" name="phone" class="form-control mb-2" value="{{ w.phone or '' }}"
+                        placeholder="No Number">
                 </div>
             </div>
 

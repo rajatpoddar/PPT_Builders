@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Salary Slip - {{ w.name }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background: #555; padding: 20px; font-family: 'Helvetica', sans-serif; }
+        .slip-container {
+            max-width: 800px; margin: auto; background: white; padding: 40px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5); min-height: 1000px; position: relative;
+        }
+        .header-box { border-bottom: 2px solid #333; padding-bottom: 20px; margin-bottom: 30px; }
+        .company-name { font-size: 28px; font-weight: bold; text-transform: uppercase; color: #0d6efd; }
+        .doc-title { font-size: 20px; font-weight: bold; text-transform: uppercase; text-align: right; color: #555; }
+        
+        .info-table td { padding: 5px; vertical-align: top; }
+        .label { font-weight: bold; color: #666; width: 120px; }
+        
+        .earnings-table th { background: #e9ecef; }
+        .total-row td { font-weight: bold; border-top: 2px solid #333 !important; font-size: 16px; }
+        
+        .signature-section { margin-top: 80px; display: flex; justify-content: space-between; }
+        .sig-box { border-top: 1px solid #333; width: 200px; text-align: center; padding-top: 10px; font-size: 12px; }
+
+        /* Print Controls */
+        .no-print { background: #333; padding: 15px; border-radius: 8px; margin-bottom: 20px; color: white; display: flex; justify-content: space-between; align-items: center; }
+        
+        @media print {
+            body { background: white; padding: 0; }
+            .slip-container { box-shadow: none; margin: 0; padding: 20px; width: 100%; max-width: 100%; }
+            .no-print { display: none !important; }
+            .btn { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="no-print">
+        <form class="d-flex gap-2 align-items-center" method="GET">
+            <span>Period:</span>
+            <input type="date" name="start_date" value="{{ start_date }}" class="form-control form-control-sm">
+            <span>to</span>
+            <input type="date" name="end_date" value="{{ end_date }}" class="form-control form-control-sm">
+            <button type="submit" class="btn btn-warning btn-sm">🔄 Update</button>
+        </form>
+        <div>
+            <button onclick="window.print()" class="btn btn-primary fw-bold">🖨️ Print / Save PDF</button>
+            <a href="javascript:history.back()" class="btn btn-outline-light btn-sm ms-2">Back</a>
+        </div>
+    </div>
+
+    <div class="slip-container">
+        
+        <div class="header-box d-flex justify-content-between align-items-start">
+            <div>
+                <div class="company-name"><span>🏗️</span> <span>PPT Builders</span></div>
+                <div class="small text-muted">Construction & Manpower Management</div>
+                <div class="small text-muted">Deoghar, Jharkhand</div>
+            </div>
+            <div class="text-end">
+                <div class="doc-title">Payslip Statement</div>
+                <div class="small mt-1"><strong>Date:</strong> {{ generated_on.strftime('%d-%b-%Y') }}</div>
+                <div class="small"><strong>Period:</strong> {{ start_date }} to {{ end_date }}</div>
+            </div>
+        </div>
+
+        <div class="row mb-4">
+            <div class="col-6">
+                <h6 class="text-uppercase fw-bold text-primary border-bottom pb-1 mb-2">Worker Details</h6>
+                <table class="w-100 info-table">
+                    <tr><td class="label">Name:</td><td><strong>{{ w.name }}</strong></td></tr>
+                    <tr><td class="label">Role:</td><td>{{ w.role }}</td></tr>
+                    <tr><td class="label">Daily Wage:</td><td>₹{{ w.daily_wage }}</td></tr>
+                    <tr><td class="label">Contact:</td><td>{{ w.phone or 'N/A' }}</td></tr>
+                </table>
+            </div>
+            <div class="col-6">
+                <h6 class="text-uppercase fw-bold text-primary border-bottom pb-1 mb-2">Site Details</h6>
+                <table class="w-100 info-table">
+                    <tr><td class="label">Site Name:</td><td>{{ w.project_name or 'Not Assigned' }}</td></tr>
+                    <tr><td class="label">Location:</td><td>{{ w.location or '-' }}</td></tr>
+                    <tr><td class="label">Status:</td>
+                        <td>
+                            {% if w.project_name %}<span class="badge bg-success text-white">Active</span>
+                            {% else %}<span class="badge bg-danger text-white">Idle</span>{% endif %}
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <h6 class="text-uppercase fw-bold text-dark bg-light p-2 mb-0 border">1. Earnings (Haziri Calculation)</h6>
+        <table class="table table-bordered mb-4 earnings-table">
+            <thead>
+                <tr>
+                    <th>Description</th>
+                    <th class="text-center">Count</th>
+                    <th class="text-center">Rate</th>
+                    <th class="text-end">Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Full Days Present</td>
+                    <td class="text-center">{{ p_days }}</td>
+                    <td class="text-center">{{ w.daily_wage }}</td>
+                    <td class="text-end">₹{{ p_days * w.daily_wage }}</td>
+                </tr>
+                <tr>
+                    <td>Half Days</td>
+                    <td class="text-center">{{ h_days }}</td>
+                    <td class="text-center">{{ w.daily_wage / 2 }}</td>
+                    <td class="text-end">₹{{ h_days * (w.daily_wage / 2) }}</td>
+                </tr>
+                <tr class="total-row bg-light">
+                    <td colspan="3">TOTAL EARNED (Gross)</td>
+                    <td class="text-end text-success">₹{{ total_earned|int }}</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h6 class="text-uppercase fw-bold text-dark bg-light p-2 mb-0 border">2. Advances & Payments Taken</h6>
+        <table class="table table-bordered mb-4 earnings-table">
+            <thead>
+                <tr>
+                    <th width="30%">Date</th>
+                    <th>Note</th>
+                    <th class="text-end">Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for adv in advances %}
+                <tr>
+                    <td>{{ adv.date }}</td>
+                    <td class="small text-muted">{{ 'Cash Payment' }}</td>
+                    <td class="text-end text-danger">- ₹{{ adv.amount }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="3" class="text-center text-muted">No advance payments taken in this period.</td></tr>
+                {% endfor %}
+                <tr class="total-row bg-light">
+                    <td colspan="2">TOTAL ADVANCE DEDUCTED</td>
+                    <td class="text-end text-danger">- ₹{{ total_taken|int }}</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="row justify-content-end mb-5">
+            <div class="col-6">
+                <table class="table table-bordered">
+                    <tr class="bg-dark text-white">
+                        <td class="fw-bold fs-5">NET PAYABLE (Balance)</td>
+                        <td class="text-end fw-bold fs-5">₹{{ net_payable|int }}</td>
+                    </tr>
+                </table>
+                <div class="text-end fst-italic text-muted small">
+                    (Total Earned - Total Taken)
+                </div>
+            </div>
+        </div>
+
+        <div class="signature-section">
+            <div class="sig-box">
+                Worker Signature
+            </div>
+            <div class="sig-box">
+                <strong>PPT Builders</strong><br>
+                Authorized Signatory
+            </div>
+        </div>
+
+        <div class="text-center mt-5 pt-3 border-top text-muted small">
+            This is a computer-generated document. | Generated by PPT Builders Manager
+        </div>
+
+    </div>
+
+</body>
+</html>

@@ -1,0 +1,163 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="mb-4">
+    <small class="text-muted d-block uppercase ls-1">SITE DASHBOARD</small>
+    <h3 class="fw-bold text-primary">{{ p.name }}</h3>
+    <p class="text-muted mb-0">📍 {{ p.location }}</p>
+</div>
+
+<div class="row g-2 mb-4">
+    <div class="col-6">
+        <div class="card stat-card bg-primary text-white p-3 border-0">
+            <h4 class="mb-0">{{ m_count }}</h4>
+            <small>Mistri</small>
+        </div>
+    </div>
+    <div class="col-6">
+        <div class="card stat-card bg-info text-white p-3 border-0">
+            <h4 class="mb-0">{{ l_count }}</h4>
+            <small>Labour</small>
+        </div>
+    </div>
+</div>
+
+<div class="card stat-card mb-4 border-0 shadow-sm">
+    <div class="card-body">
+        <h6 class="fw-bold text-muted mb-3">🚧 Work Progress</h6>
+        
+        <div class="d-flex justify-content-between mb-1">
+            <span class="fw-bold fs-5">{{ total_prog|int }} <small class="text-muted fs-6">{{ p.unit }}</small></span>
+            <span class="text-primary fw-bold">{{ percent }}%</span>
+        </div>
+        
+        <div class="progress mb-3" style="height: 10px;">
+            <div class="progress-bar progress-bar-striped bg-success" style="width: {{ percent }}%"></div>
+        </div>
+        
+        <small class="text-muted">Target: {{ p.target }} {{ p.unit }}</small>
+
+        <hr>
+
+        <button class="btn btn-outline-primary w-100" data-bs-toggle="modal" data-bs-target="#progressModal">
+            📈 Update Daily Work
+        </button>
+    </div>
+</div>
+
+<h6 class="text-muted small fw-bold mb-3">DAILY ACTIONS</h6>
+<div class="row g-3">
+    
+    <div class="col-6">
+        <a href="{{ url_for('attendance') }}" class="text-decoration-none">
+            <div class="card stat-card border-0 shadow-sm text-center py-4" style="background: #e8f5e9;">
+                <div class="fs-1 mb-2">📝</div>
+                <h6 class="fw-bold text-dark mb-0">Attendance</h6>
+                {% if att_done > 0 %}
+                <small class="text-success">✅ Marked</small>
+                {% else %}
+                <small class="text-danger">⚠️ Pending</small>
+                {% endif %}
+            </div>
+        </a>
+    </div>
+
+    <div class="col-6">
+        <a href="#" data-bs-toggle="modal" data-bs-target="#expenseModal" class="text-decoration-none">
+            <div class="card stat-card border-0 shadow-sm text-center py-4" style="background: #fff3cd;">
+                <div class="fs-1 mb-2">💸</div>
+                <h6 class="fw-bold text-dark mb-0">Expense</h6>
+                <small class="text-muted">+ Upload Bill</small>
+            </div>
+        </a>
+    </div>
+
+    <div class="col-6">
+        <a href="{{ url_for('expense_log') }}" class="text-decoration-none">
+            <div class="card stat-card border-0 shadow-sm text-center py-4">
+                <div class="fs-1 mb-2">📋</div>
+                <h6 class="fw-bold text-dark mb-0">View Report</h6>
+                <small class="text-muted">Expenses List</small>
+            </div>
+        </a>
+    </div>
+
+    <div class="col-6">
+        <a href="{{ url_for('attendance_report') }}" class="text-decoration-none">
+            <div class="card stat-card border-0 shadow-sm text-center py-4">
+                <div class="fs-1 mb-2">📊</div>
+                <h6 class="fw-bold text-dark mb-0">Site Report</h6>
+                <small class="text-muted">Full Status</small>
+            </div>
+        </a>
+    </div>
+
+</div>
+
+<div class="modal fade" id="progressModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form action="{{ url_for('add_work_log') }}" method="POST">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title">📈 Daily Work Update</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="project_id" value="{{ p.id }}">
+
+                    <label class="small text-muted mb-1">Aaj Kitna Kaam Hua? ({{ p.unit }})</label>
+                    <input type="number" step="any" name="progress" class="form-control mb-3" required>
+
+                    <label class="small text-muted mb-1">Aaj Kitna Maal Laga? (Gaadi)</label>
+                    <input type="number" step="any" name="material_loads" class="form-control mb-3" required>
+
+                    <label class="small text-muted mb-1">Date</label>
+                    <input type="date" name="date" class="form-control mb-3" value="{{ today_log }}">
+
+                    <label class="small text-muted mb-1">Note</label>
+                    <input type="text" name="notes" class="form-control">
+                </div>
+                <div class="modal-footer"><button type="submit" class="btn btn-success w-100">Save Update</button></div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="expenseModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form action="{{ url_for('add_expense') }}" method="POST" enctype="multipart/form-data">
+                <div class="modal-header bg-warning text-dark">
+                    <h5 class="modal-title">💸 Add Expense</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="project_id" value="{{ p.id }}">
+                    
+                    <label class="small text-muted mb-1">Item</label>
+                    <input type="text" name="item" class="form-control mb-3" required>
+                    
+                    <label class="small text-muted mb-1">Amount</label>
+                    <input type="number" name="amount" class="form-control mb-3" required>
+                    
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="small text-muted mb-1">📁 Upload Bill</label>
+                            <input type="file" name="bill_photo" class="form-control form-control-sm" accept="image/*,application/pdf">
+                        </div>
+                        <div class="col-6">
+                            <label class="small text-muted mb-1">📷 Take Photo</label>
+                            <input type="file" name="bill_camera" class="form-control form-control-sm" accept="image/*" capture="environment">
+                        </div>
+                    </div>
+                    
+                    <label class="small text-muted mb-1">Date</label>
+                    <input type="datetime-local" name="date_time" class="form-control">
+                </div>
+                <div class="modal-footer"><button type="submit" class="btn btn-warning w-100">Save Expense</button></div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

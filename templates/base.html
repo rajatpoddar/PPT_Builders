@@ -32,7 +32,8 @@
   <body>
     <nav class="navbar navbar-dark fixed-top">
       <div class="container-fluid px-3">
-        <a class="navbar-brand mb-0 h1 fw-bold d-flex align-items-center gap-2" href="{{ url_for('dashboard') if current_user.is_authenticated else url_for('public_home') }}">
+        <a class="navbar-brand mb-0 h1 fw-bold d-flex align-items-center gap-2" 
+           href="{% if current_user.is_authenticated %}{% if current_user.role == 'foreman' %}{{ url_for('foreman_dashboard') }}{% else %}{{ url_for('dashboard') }}{% endif %}{% else %}{{ url_for('public_home') }}{% endif %}">
            <span>🏗️</span> <span>PPT Builders</span>
         </a>
 
@@ -69,18 +70,23 @@
 
     {% if current_user.is_authenticated %}
     <div class="mobile-nav d-flex justify-content-between align-items-center">
-        <a href="{{ url_for('dashboard') }}" class="nav-item {{ 'active' if request.endpoint == 'dashboard' }}">
+        <a href="{{ url_for('foreman_dashboard') if current_user.role == 'foreman' else url_for('dashboard') }}" 
+           class="nav-item {{ 'active' if 'dashboard' in request.endpoint }}">
             <span class="nav-icon">🏠</span><span class="nav-text">Home</span>
         </a>
-        <a href="{{ url_for('attendance_report') }}" class="nav-item {{ 'active' if request.endpoint == 'attendance_report' or request.endpoint == 'attendance' }}">
+        
+        <a href="{{ url_for('attendance_report') }}" class="nav-item {{ 'active' if 'report' in request.endpoint }}">
             <span class="nav-icon">📊</span><span class="nav-text">Report</span>
         </a>
+
+        {% if current_user.role == 'admin' %}
         <a href="{{ url_for('payments') }}" class="nav-item {{ 'active' if request.endpoint == 'payments' }}">
             <span class="nav-icon">💰</span><span class="nav-text">Pay</span>
         </a>
         <a href="{{ url_for('add_worker') }}" class="nav-item {{ 'active' if request.endpoint == 'add_worker' }}">
             <span class="nav-icon">👷</span><span class="nav-text">Workers</span>
         </a>
+        {% endif %}
     </div>
     {% endif %}
 
